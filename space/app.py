@@ -487,7 +487,13 @@ def toggle_sidebar(open_state: bool) -> tuple[Any, ...]:
     return next_state, gr.update(visible=next_state), gr.update(elem_classes=editor_classes), "☰"
 
 
-with gr.Blocks(title="Text Tool", fill_height=True, theme="gstaff/sketch", css=LAYOUT_CSS) as demo:
+sketch_theme = gr.Theme.from_hub("gstaff/sketch")
+sketch_theme.set(
+    input_background_fill_focus="white",
+    input_background_fill_focus_dark="*neutral_800",
+)
+
+with gr.Blocks(title="Text Tool", fill_height=True, theme=sketch_theme, css=LAYOUT_CSS) as demo:
     drafts_state = gr.State([])
     sections_state = gr.State(blank_sections())
     active_index_state = gr.State(0)
