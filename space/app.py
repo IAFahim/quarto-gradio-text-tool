@@ -22,6 +22,14 @@ active_processes = {}
 is_hf_space = os.getenv("SPACE_ID") is not None
 default_run_loc = "Local Bridge (ws://localhost:7890)" if is_hf_space else "Local System (Subprocess)"
 
+def to_html_console(text: str) -> str:
+    escaped = (
+        text.replace("&", "&amp;")
+        .replace("<", "&lt;")
+        .replace(">", "&gt;")
+    )
+    return f"<pre style='margin: 0; font-family: inherit;'>{escaped}</pre>"
+
 LAYOUT_CSS = """
 .app-shell {
     align-items: flex-start !important;
@@ -59,14 +67,19 @@ LAYOUT_CSS = """
     padding-left: 4px !important;
     padding-right: 4px !important;
 }
-#snippet-console textarea {
+#snippet-console {
     font-family: monospace !important;
     background-color: #121212 !important;
     color: #00ff66 !important;
-    pointer-events: auto !important;
     padding: 12px !important;
-    line-height: 1.5 !important;
-    font-size: 13px !important;
+    border-radius: 6px !important;
+    height: 240px !important;
+    min-height: 240px !important;
+    max-height: 480px !important;
+    overflow-y: auto !important;
+    white-space: pre-wrap !important;
+    word-break: break-all !important;
+    border: 1px solid #2d2d2d !important;
 }
 """
 
@@ -629,7 +642,7 @@ def toggle_sidebar(open_state: bool) -> tuple[Any, ...]:
 
 async def run_local_cmd(cmd: str, session_id: str):
     if not cmd.strip():
-        yield "Error: Code snippet is empty.", gr.update(visible=True), gr.update(visible=False)
+        yield to_html_console("Error: Code snippet is empty."), gr.update(visible=True), gr.update(visible=False)
         return
 
     if session_id in active_processes:
@@ -639,7 +652,7 @@ async def run_local_cmd(cmd: str, session_id: str):
             pass
         del active_processes[session_id]
 
-    yield "Starting command...\n", gr.update(visible=False), gr.update(visible=True)
+    yield to_html_console("Starting command...\n"), gr.update(visible=False), gr.update(visible=True)
     try:
         proc = await asyncio.create_subprocess_shell(
             cmd,
@@ -654,15 +667,15 @@ async def run_local_cmd(cmd: str, session_id: str):
             if not line:
                 break
             output += line.decode(errors="replace")
-            yield output, gr.update(visible=False), gr.update(visible=True)
+            yield to_html_console(output), gr.update(visible=False), gr.update(visible=True)
                 
         rc = await proc.wait()
         output += f"\n--- Process exited with code {rc} ---"
         if session_id in active_processes:
             del active_processes[session_id]
-        yield output, gr.update(visible=True), gr.update(visible=False)
+        yield to_html_console(output), gr.update(visible=True), gr.update(visible=False)
     except Exception as e:
-        yield f"Error executing command: {e}", gr.update(visible=True), gr.update(visible=False)
+        yield to_html_console(f"Error executing command: {e}"), gr.update(visible=True), gr.update(visible=False)
 
 
 def handle_stop_click(run_loc: str, session_id: str):
@@ -673,7 +686,7 @@ def handle_stop_click(run_loc: str, session_id: str):
             except Exception:
                 pass
             del active_processes[session_id]
-        return "--- Process terminated by user ---", gr.update(visible=True), gr.update(visible=False)
+        return to_html_console("--- Process terminated by user ---"), gr.update(visible=True), gr.update(visible=False)
     else:
         return gr.skip(), gr.skip(), gr.skip()
 
@@ -754,14 +767,10 @@ with gr.Blocks(title="Text Tool", fill_height=True, css=LAYOUT_CSS) as demo:
                 run_snippet_btn = gr.Button("▶ Run", variant="secondary", scale=1, elem_id="run-snippet-btn")
                 stop_snippet_btn = gr.Button("⏹ Stop", variant="stop", scale=1, elem_id="stop-snippet-btn", visible=False)
 
-            console_output = gr.Textbox(
-                label="Console Output",
-                placeholder="Output from running the code snippet will appear here...",
-                lines=10,
-                max_lines=30,
-                interactive=False,
+            gr.Markdown("### Console Output")
+            console_output = gr.HTML(
+                value="<pre style='margin: 0; font-family: inherit; color: #888;'>Output from running the code snippet will appear here...</pre>",
                 elem_id="snippet-console",
-                elem_classes=["code-snippet"],
             )
 
             editor = gr.Textbox(label="Text", lines=24, max_lines=80, elem_classes="main-editor")
@@ -973,17 +982,27 @@ with gr.Blocks(title="Text Tool", fill_height=True, css=LAYOUT_CSS) as demo:
         outputs=[console_output, run_snippet_btn, stop_snippet_btn],
         js="""(code, runLoc) => {
             if (runLoc === "Local Bridge (ws://localhost:7890)") {
-                const consoleEl = document.querySelector('#snippet-console textarea');
+                const consoleEl = document.getElementById('snippet-console');
                 const runBtn = document.getElementById('run-snippet-btn');
                 const stopBtn = document.getElementById('stop-snippet-btn');
                 
                 if (runBtn) runBtn.style.setProperty('display', 'none', 'important');
                 if (stopBtn) stopBtn.style.removeProperty('display');
                 
-                if (consoleEl) {
-                    consoleEl.value = "Connecting to local bridge at ws://localhost:7890...\\n";
+                let consoleText = "Connecting to local bridge at ws://localhost:7890...\\n";
+                
+                const updateConsole = (newText) => {
+                    if (!consoleEl) return;
+                    consoleText += newText;
+                    const escaped = consoleText
+                        .replace(/&/g, "&amp;")
+                        .replace(/</g, "&lt;")
+                        .replace(/>/g, "&gt;");
+                    consoleEl.innerHTML = `<pre style="margin: 0; font-family: inherit;">${escaped}</pre>`;
                     consoleEl.scrollTop = consoleEl.scrollHeight;
-                }
+                };
+                
+                updateConsole("");
                 
                 if (window.snippetRunner && window.snippetRunner.socket) {
                     try { window.snippetRunner.socket.close(); } catch(e) {}
@@ -994,19 +1013,14 @@ with gr.Blocks(title="Text Tool", fill_height=True, css=LAYOUT_CSS) as demo:
                     socket = new WebSocket("ws://127.0.0.1:7890");
                     window.snippetRunner = { socket: socket };
                 } catch(err) {
-                    if (consoleEl) {
-                        consoleEl.value += "Error creating WebSocket: " + err.message + "\\n";
-                    }
+                    updateConsole("Error creating WebSocket: " + err.message + "\\n");
                     if (runBtn) runBtn.style.removeProperty('display');
                     if (stopBtn) stopBtn.style.setProperty('display', 'none', 'important');
                     return;
                 }
                 
                 socket.onopen = () => {
-                    if (consoleEl) {
-                        consoleEl.value += "Connected. Performing handshake...\\n";
-                        consoleEl.scrollTop = consoleEl.scrollHeight;
-                    }
+                    updateConsole("Connected. Performing handshake...\\n");
                     socket.send(JSON.stringify({ type: "handshake", version: 2 }));
                 };
                 
@@ -1014,10 +1028,7 @@ with gr.Blocks(title="Text Tool", fill_height=True, css=LAYOUT_CSS) as demo:
                     try {
                         const msg = JSON.parse(event.data);
                         if (msg.type === "handshake") {
-                            if (consoleEl) {
-                                consoleEl.value += "Handshake completed. Executing snippet...\\n\\n";
-                                consoleEl.scrollTop = consoleEl.scrollHeight;
-                            }
+                            updateConsole("Handshake completed. Executing snippet...\\n\\n");
                             socket.send(JSON.stringify({
                                 type: "run",
                                 id: "gradio-snippet",
@@ -1026,42 +1037,25 @@ with gr.Blocks(title="Text Tool", fill_height=True, css=LAYOUT_CSS) as demo:
                                 timeout: 300
                             }));
                         } else if (msg.type === "stdout" || msg.type === "stderr") {
-                            if (consoleEl) {
-                                consoleEl.value += msg.data;
-                                consoleEl.scrollTop = consoleEl.scrollHeight;
-                            }
+                            updateConsole(msg.data);
                         } else if (msg.type === "exit") {
-                            if (consoleEl) {
-                                consoleEl.value += "\\n--- Process exited with code " + msg.code + " (" + msg.elapsed_ms + "ms) ---\\n";
-                                consoleEl.scrollTop = consoleEl.scrollHeight;
-                            }
+                            updateConsole("\\n--- Process exited with code " + msg.code + " (" + msg.elapsed_ms + "ms) ---\\n");
                             socket.close();
                         } else if (msg.type === "error") {
-                            if (consoleEl) {
-                                consoleEl.value += "\\nError: " + msg.message + "\\n";
-                                consoleEl.scrollTop = consoleEl.scrollHeight;
-                            }
+                            updateConsole("\\nError: " + msg.message + "\\n");
                             socket.close();
                         }
                     } catch(e) {
-                        if (consoleEl) {
-                            consoleEl.value += "\\nError parsing message: " + e.message + "\\n";
-                        }
+                        updateConsole("\\nError parsing message: " + e.message + "\\n");
                     }
                 };
                 
                 socket.onerror = (err) => {
-                    if (consoleEl) {
-                        consoleEl.value += "\\nWebSocket error occurred.\\n";
-                        consoleEl.scrollTop = consoleEl.scrollHeight;
-                    }
+                    updateConsole("\\nWebSocket error occurred.\\n");
                 };
                 
                 socket.onclose = () => {
-                    if (consoleEl) {
-                        consoleEl.value += "\\nBridge connection closed.\\n";
-                        consoleEl.scrollTop = consoleEl.scrollHeight;
-                    }
+                    updateConsole("\\nBridge connection closed.\\n");
                     if (runBtn) runBtn.style.removeProperty('display');
                     if (stopBtn) stopBtn.style.setProperty('display', 'none', 'important');
                 };
@@ -1085,19 +1079,19 @@ with gr.Blocks(title="Text Tool", fill_height=True, css=LAYOUT_CSS) as demo:
 
     # Reset console when switching tabs or drafts
     active_tab.change(
-        lambda: ("", gr.update(visible=True), gr.update(visible=False)),
+        lambda: ("<pre style='margin: 0; font-family: inherit; color: #888;'>Output from running the code snippet will appear here...</pre>", gr.update(visible=True), gr.update(visible=False)),
         outputs=[console_output, run_snippet_btn, stop_snippet_btn]
     )
     history.change(
-        lambda: ("", gr.update(visible=True), gr.update(visible=False)),
+        lambda: ("<pre style='margin: 0; font-family: inherit; color: #888;'>Output from running the code snippet will appear here...</pre>", gr.update(visible=True), gr.update(visible=False)),
         outputs=[console_output, run_snippet_btn, stop_snippet_btn]
     )
     new_button.click(
-        lambda: ("", gr.update(visible=True), gr.update(visible=False)),
+        lambda: ("<pre style='margin: 0; font-family: inherit; color: #888;'>Output from running the code snippet will appear here...</pre>", gr.update(visible=True), gr.update(visible=False)),
         outputs=[console_output, run_snippet_btn, stop_snippet_btn]
     )
     delete_button.click(
-        lambda: ("", gr.update(visible=True), gr.update(visible=False)),
+        lambda: ("<pre style='margin: 0; font-family: inherit; color: #888;'>Output from running the code snippet will appear here...</pre>", gr.update(visible=True), gr.update(visible=False)),
         outputs=[console_output, run_snippet_btn, stop_snippet_btn]
     )
 
