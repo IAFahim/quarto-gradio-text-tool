@@ -15,6 +15,105 @@ SEGMENT_LABELS = [f"Segment {index}" for index in range(1, 6)]
 LOCAL_DATA_DIR = Path(__file__).resolve().parent / "data"
 DATA_DIR = Path("/data") if Path("/data").is_dir() and os.access("/data", os.W_OK) else LOCAL_DATA_DIR
 HISTORY_PATH = DATA_DIR / "history.json"
+APP_CSS = """
+footer {display: none !important;}
+.gradio-container {
+    max-width: none !important;
+    min-height: 100vh !important;
+    padding: 0 !important;
+    background: #f6f7f9 !important;
+}
+.app-frame {
+    min-height: 100vh;
+    display: grid;
+    grid-template-columns: 320px minmax(0, 1fr);
+    background: #f6f7f9;
+}
+.sidebar {
+    min-height: 100vh;
+    padding: 24px 18px;
+    border-right: 1px solid #e2e5ea;
+    background: #ffffff;
+}
+.workspace {
+    min-width: 0;
+    padding: 24px;
+}
+.app-title h1,
+.app-title p {
+    margin: 0;
+}
+.app-title h1 {
+    font-size: 28px;
+    line-height: 1.15;
+    color: #17191f;
+}
+.app-title p {
+    margin-top: 6px;
+    color: #667085;
+}
+.history-list {
+    margin-top: 18px;
+}
+.history-list label,
+.history-list .wrap {
+    border-radius: 8px !important;
+}
+.action-grid {
+    display: grid !important;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+}
+.save-button,
+.copy-button {
+    width: 100%;
+}
+.status-line {
+    min-height: 26px;
+    color: #475467;
+    font-size: 13px;
+}
+.editor-grid {
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(280px, 1fr));
+    gap: 16px;
+}
+.segment-box textarea {
+    min-height: 140px !important;
+}
+.combined-panel {
+    margin-top: 18px;
+}
+.combined-panel textarea {
+    min-height: 230px !important;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace !important;
+    font-size: 13px !important;
+}
+.gr-button {
+    border-radius: 8px !important;
+    min-height: 42px !important;
+}
+.primary {
+    background: #1f7a4d !important;
+    border-color: #1f7a4d !important;
+}
+@media (max-width: 900px) {
+    .app-frame {
+        grid-template-columns: 1fr;
+    }
+    .sidebar {
+        min-height: auto;
+        border-right: 0;
+        border-bottom: 1px solid #e2e5ea;
+    }
+    .workspace {
+        padding: 16px;
+    }
+    .editor-grid {
+        grid-template-columns: 1fr;
+    }
+}
+"""
 
 
 def now_iso() -> str:
@@ -181,31 +280,58 @@ def load_selected(drafts: list[dict[str, Any]], selected_label: str | None) -> t
     return *segments, combine_segments(*segments), "Loaded selection." if draft else "No draft selected."
 
 
-with gr.Blocks(title="Text Tool", fill_height=True) as demo:
+theme = gr.themes.Default(
+    primary_hue="green",
+    secondary_hue="slate",
+    neutral_hue="slate",
+).set(
+    body_text_size="14px",
+    block_border_width="1px",
+    block_radius="8px",
+    button_large_radius="8px",
+)
+
+
+with gr.Blocks(title="Text Tool", fill_height=True, theme=theme, css=APP_CSS) as demo:
     drafts_state = gr.State([])
 
-    gr.Markdown("# Text Tool")
-
-    with gr.Row(equal_height=False):
-        with gr.Column(scale=1, min_width=260):
-            history = gr.Radio(label="History", choices=[], interactive=True)
-            new_button = gr.Button("New", variant="secondary")
-            fork_button = gr.Button("Fork", variant="secondary")
-            save_button = gr.Button("Save", variant="primary")
-            status = gr.Markdown()
-
-        with gr.Column(scale=3):
-            segment_boxes = [
-                gr.Textbox(label=label, lines=5, max_lines=12)
-                for label in SEGMENT_LABELS
-            ]
-            combined = gr.Textbox(
-                label="Combined text",
-                lines=12,
-                max_lines=24,
-                interactive=False,
+    with gr.Row(elem_classes="app-frame"):
+        with gr.Column(elem_classes="sidebar", min_width=300):
+            gr.Markdown(
+                "# Text Tool\nCreate, save, fork, and combine five text segments.",
+                elem_classes="app-title",
             )
-            copy_button = gr.Button("Copy combined", variant="secondary")
+            history = gr.Radio(
+                label="History",
+                choices=[],
+                interactive=True,
+                elem_classes="history-list",
+            )
+            with gr.Row(elem_classes="action-grid"):
+                new_button = gr.Button("New", variant="secondary")
+                fork_button = gr.Button("Fork", variant="secondary")
+            save_button = gr.Button("Save", variant="primary", elem_classes="save-button")
+            status = gr.Markdown(elem_classes="status-line")
+
+        with gr.Column(elem_classes="workspace"):
+            with gr.Row(elem_classes="editor-grid"):
+                segment_boxes = [
+                    gr.Textbox(
+                        label=label,
+                        lines=6,
+                        max_lines=14,
+                        elem_classes="segment-box",
+                    )
+                    for label in SEGMENT_LABELS
+                ]
+            with gr.Column(elem_classes="combined-panel"):
+                combined = gr.Textbox(
+                    label="Combined text",
+                    lines=12,
+                    max_lines=24,
+                    interactive=False,
+                )
+                copy_button = gr.Button("Copy combined", variant="secondary", elem_classes="copy-button")
 
     demo.load(
         load_app,
