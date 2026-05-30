@@ -64,6 +64,9 @@ LAYOUT_CSS = """
     background-color: #121212 !important;
     color: #00ff66 !important;
     pointer-events: auto !important;
+    padding: 12px !important;
+    line-height: 1.5 !important;
+    font-size: 13px !important;
 }
 """
 
