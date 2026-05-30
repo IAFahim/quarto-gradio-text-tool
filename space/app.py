@@ -204,8 +204,8 @@ with gr.Blocks(title="Text Tool", fill_height=True) as demo:
                 lines=12,
                 max_lines=24,
                 interactive=False,
-                buttons=["copy"],
             )
+            copy_button = gr.Button("Copy combined", variant="secondary")
 
     demo.load(
         load_app,
@@ -240,6 +240,13 @@ with gr.Blocks(title="Text Tool", fill_height=True) as demo:
         load_selected,
         inputs=[drafts_state, history],
         outputs=[*segment_boxes, combined, status],
+    )
+
+    copy_button.click(
+        lambda text: "Copied to clipboard.",
+        inputs=combined,
+        outputs=status,
+        js="(text) => { navigator.clipboard.writeText(text || ''); return 'Copied to clipboard.'; }",
     )
 
 

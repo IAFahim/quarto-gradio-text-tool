@@ -5,7 +5,7 @@ description = "Quarto site embedding a persistent Hugging Face Gradio text tool.
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
-    "gradio>=5.0",
+    "gradio==5.49.1",
 ]
 
 [dependency-groups]
