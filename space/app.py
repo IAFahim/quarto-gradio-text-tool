@@ -43,6 +43,9 @@ LAYOUT_CSS = """
 .main-editor textarea {
     min-height: 520px !important;
 }
+.code-snippet textarea {
+    font-family: monospace !important;
+}
 """
 
 def now_iso() -> str:
@@ -59,6 +62,7 @@ def new_section(title: str | None = None, text: str = "") -> dict[str, str]:
         "id": str(uuid.uuid4()),
         "title": title or "Untitled",
         "text": text or "",
+        "code": "",
     }
 
 
@@ -78,6 +82,7 @@ def normalize_sections(draft: dict[str, Any]) -> list[dict[str, str]]:
                     "id": str(section.get("id") or uuid.uuid4()),
                     "title": str(section.get("title") or f"Tab {index}"),
                     "text": str(section.get("text") or ""),
+                    "code": str(section.get("code") or ""),
                 }
             )
         if sections:
@@ -119,10 +124,17 @@ def parse_tab_index(label: str | None, sections: list[dict[str, str]]) -> int:
     return 0
 
 
-def commit_editor_text(sections: list[dict[str, str]], active_index: int, text: str | None) -> list[dict[str, str]]:
+def commit_editor_text(
+    sections: list[dict[str, str]],
+    active_index: int,
+    text: str | None,
+    code: str | None = None,
+) -> list[dict[str, str]]:
     sections = [dict(section) for section in (sections or blank_sections())]
     active_index = max(0, min(active_index or 0, len(sections) - 1))
     sections[active_index]["text"] = text or ""
+    if code is not None:
+        sections[active_index]["code"] = code or ""
     return sections
 
 
@@ -227,6 +239,7 @@ def load_app() -> tuple[Any, ...]:
         active_index,
         gr.update(choices=tab_choices(sections), value=active_label(sections, active_index)),
         sections[active_index]["text"],
+        sections[active_index].get("code", ""),
         sections[active_index]["title"],
         draft.get("title", "Untitled draft") if draft else "Untitled draft",
         combine_sections(sections),
@@ -248,6 +261,7 @@ def select_history(drafts: list[dict[str, Any]], selected_label: str | None) -> 
         active_index,
         gr.update(choices=tab_choices(sections), value=active_label(sections, active_index)),
         sections[active_index]["text"],
+        sections[active_index].get("code", ""),
         sections[active_index]["title"],
         draft.get("title", "Untitled draft") if draft else "Untitled draft",
         combine_sections(sections),
@@ -263,6 +277,7 @@ def new_draft() -> tuple[Any, ...]:
         0,
         gr.update(choices=tab_choices(sections), value=active_label(sections, 0)),
         "",
+        "",
         sections[0]["title"],
         "Untitled draft",
         "",
@@ -276,11 +291,12 @@ def save_current(
     sections: list[dict[str, str]],
     active_index: int,
     editor_text: str,
+    code_text: str,
     draft_title: str,
     user_name: str,
 ) -> tuple[Any, ...]:
     drafts = list(drafts or [])
-    sections = commit_editor_text(sections, active_index, editor_text)
+    sections = commit_editor_text(sections, active_index, editor_text, code_text)
     timestamp = now_iso()
     existing = find_draft_by_label(drafts, selected_label)
     title = (draft_title or "").strip() or title_from_sections(sections)
@@ -323,11 +339,12 @@ def copy_and_save_current(
     sections: list[dict[str, str]],
     active_index: int,
     editor_text: str,
+    code_text: str,
     draft_title: str,
     user_name: str,
 ) -> tuple[Any, ...]:
     drafts = list(drafts or [])
-    sections = commit_editor_text(sections, active_index, editor_text)
+    sections = commit_editor_text(sections, active_index, editor_text, code_text)
     timestamp = now_iso()
     existing = find_draft_by_label(drafts, selected_label)
     title = (draft_title or "").strip() or title_from_sections(sections)
@@ -371,11 +388,12 @@ def fork_current(
     sections: list[dict[str, str]],
     active_index: int,
     editor_text: str,
+    code_text: str,
     draft_title: str,
     user_name: str,
 ) -> tuple[Any, ...]:
     drafts = list(drafts or [])
-    sections = commit_editor_text(sections, active_index, editor_text)
+    sections = commit_editor_text(sections, active_index, editor_text, code_text)
     timestamp = now_iso()
     forked = {
         "id": str(uuid.uuid4()),
@@ -405,6 +423,7 @@ def delete_current(drafts: list[dict[str, Any]], selected_label: str | None) -> 
         0,
         gr.update(choices=tab_choices(sections), value=active_label(sections, 0)),
         sections[0]["text"],
+        sections[0].get("code", ""),
         sections[0]["title"],
         draft.get("title", "Untitled draft") if draft else "Untitled draft",
         combine_sections(sections),
@@ -417,13 +436,15 @@ def select_tab(
     active_index: int,
     active_tab: str | None,
     editor_text: str,
+    code_text: str,
 ) -> tuple[Any, ...]:
-    sections = commit_editor_text(sections, active_index, editor_text)
+    sections = commit_editor_text(sections, active_index, editor_text, code_text)
     next_index = parse_tab_index(active_tab, sections)
     return (
         sections,
         next_index,
         sections[next_index]["text"],
+        sections[next_index].get("code", ""),
         sections[next_index]["title"],
         combine_sections(sections),
         "",  # Clear status
@@ -435,13 +456,25 @@ def update_active_text(sections: list[dict[str, str]], active_index: int, editor
     return sections, combine_sections(sections), ""  # Clear status
 
 
+def update_active_code(
+    sections: list[dict[str, str]],
+    active_index: int,
+    code_text: str,
+) -> tuple[Any, ...]:
+    sections = [dict(section) for section in (sections or blank_sections())]
+    active_index = max(0, min(active_index or 0, len(sections) - 1))
+    sections[active_index]["code"] = code_text or ""
+    return sections, ""  # Clear status
+
+
 def rename_active_tab(
     sections: list[dict[str, str]],
     active_index: int,
     editor_text: str,
+    code_text: str,
     tab_title: str,
 ) -> tuple[Any, ...]:
-    sections = commit_editor_text(sections, active_index, editor_text)
+    sections = commit_editor_text(sections, active_index, editor_text, code_text)
     active_index = max(0, min(active_index or 0, len(sections) - 1))
     sections[active_index]["title"] = (tab_title or "").strip() or f"Tab {active_index + 1}"
     return (
@@ -452,8 +485,13 @@ def rename_active_tab(
     )
 
 
-def add_tab(sections: list[dict[str, str]], active_index: int, editor_text: str) -> tuple[Any, ...]:
-    sections = commit_editor_text(sections, active_index, editor_text)
+def add_tab(
+    sections: list[dict[str, str]],
+    active_index: int,
+    editor_text: str,
+    code_text: str,
+) -> tuple[Any, ...]:
+    sections = commit_editor_text(sections, active_index, editor_text, code_text)
     sections.append(new_section(f"Tab {len(sections) + 1}"))
     next_index = len(sections) - 1
     return (
@@ -461,14 +499,20 @@ def add_tab(sections: list[dict[str, str]], active_index: int, editor_text: str)
         next_index,
         gr.update(choices=tab_choices(sections), value=active_label(sections, next_index)),
         "",
+        "",
         sections[next_index]["title"],
         combine_sections(sections),
         "Added tab.",
     )
 
 
-def delete_tab(sections: list[dict[str, str]], active_index: int, editor_text: str) -> tuple[Any, ...]:
-    sections = commit_editor_text(sections, active_index, editor_text)
+def delete_tab(
+    sections: list[dict[str, str]],
+    active_index: int,
+    editor_text: str,
+    code_text: str,
+) -> tuple[Any, ...]:
+    sections = commit_editor_text(sections, active_index, editor_text, code_text)
     if len(sections) > 1:
         del sections[max(0, min(active_index or 0, len(sections) - 1))]
     next_index = max(0, min(active_index or 0, len(sections) - 1))
@@ -477,6 +521,7 @@ def delete_tab(sections: list[dict[str, str]], active_index: int, editor_text: s
         next_index,
         gr.update(choices=tab_choices(sections), value=active_label(sections, next_index)),
         sections[next_index]["text"],
+        sections[next_index].get("code", ""),
         sections[next_index]["title"],
         combine_sections(sections),
         "Deleted tab." if len(sections) > 1 else "Kept the last tab.",
@@ -487,8 +532,9 @@ def move_tab_up(
     sections: list[dict[str, str]],
     active_index: int,
     editor_text: str,
+    code_text: str,
 ) -> tuple[Any, ...]:
-    sections = commit_editor_text(sections, active_index, editor_text)
+    sections = commit_editor_text(sections, active_index, editor_text, code_text)
     if active_index > 0:
         sections[active_index], sections[active_index - 1] = sections[active_index - 1], sections[active_index]
         next_index = active_index - 1
@@ -501,6 +547,7 @@ def move_tab_up(
         next_index,
         gr.update(choices=tab_choices(sections), value=active_label(sections, next_index)),
         sections[next_index]["text"],
+        sections[next_index].get("code", ""),
         sections[next_index]["title"],
         combine_sections(sections),
         msg,
@@ -511,8 +558,9 @@ def move_tab_down(
     sections: list[dict[str, str]],
     active_index: int,
     editor_text: str,
+    code_text: str,
 ) -> tuple[Any, ...]:
-    sections = commit_editor_text(sections, active_index, editor_text)
+    sections = commit_editor_text(sections, active_index, editor_text, code_text)
     if active_index < len(sections) - 1:
         sections[active_index], sections[active_index + 1] = sections[active_index + 1], sections[active_index]
         next_index = active_index + 1
@@ -525,6 +573,7 @@ def move_tab_down(
         next_index,
         gr.update(choices=tab_choices(sections), value=active_label(sections, next_index)),
         sections[next_index]["text"],
+        sections[next_index].get("code", ""),
         sections[next_index]["title"],
         combine_sections(sections),
         msg,
@@ -584,6 +633,14 @@ with gr.Blocks(title="Text Tool", fill_height=True, css=LAYOUT_CSS) as demo:
                 )
                 add_tab_button = gr.Button("+ Tab", scale=0)
 
+            code_snippet = gr.Textbox(
+                label="Code Snippet",
+                placeholder="Paste a code snippet here (it won't be copied in the main text output)...",
+                lines=3,
+                max_lines=10,
+                elem_classes="code-snippet",
+            )
+
             editor = gr.Textbox(label="Text", lines=24, max_lines=80, elem_classes="main-editor")
 
             with gr.Row(elem_classes="layout-bottom"):
@@ -613,6 +670,7 @@ with gr.Blocks(title="Text Tool", fill_height=True, css=LAYOUT_CSS) as demo:
             active_index_state,
             active_tab,
             editor,
+            code_snippet,
             tab_title,
             draft_title,
             combined,
@@ -636,6 +694,7 @@ with gr.Blocks(title="Text Tool", fill_height=True, css=LAYOUT_CSS) as demo:
             active_index_state,
             active_tab,
             editor,
+            code_snippet,
             tab_title,
             draft_title,
             combined,
@@ -651,6 +710,7 @@ with gr.Blocks(title="Text Tool", fill_height=True, css=LAYOUT_CSS) as demo:
             active_index_state,
             active_tab,
             editor,
+            code_snippet,
             tab_title,
             draft_title,
             combined,
@@ -660,13 +720,13 @@ with gr.Blocks(title="Text Tool", fill_height=True, css=LAYOUT_CSS) as demo:
 
     save_button.click(
         save_current,
-        inputs=[drafts_state, history, sections_state, active_index_state, editor, draft_title, user_name],
+        inputs=[drafts_state, history, sections_state, active_index_state, editor, code_snippet, draft_title, user_name],
         outputs=[drafts_state, history, sections_state, combined, status],
     )
 
     fork_button.click(
         fork_current,
-        inputs=[drafts_state, sections_state, active_index_state, editor, draft_title, user_name],
+        inputs=[drafts_state, sections_state, active_index_state, editor, code_snippet, draft_title, user_name],
         outputs=[drafts_state, history, draft_title, status],
     )
 
@@ -680,6 +740,7 @@ with gr.Blocks(title="Text Tool", fill_height=True, css=LAYOUT_CSS) as demo:
             active_index_state,
             active_tab,
             editor,
+            code_snippet,
             tab_title,
             draft_title,
             combined,
@@ -689,8 +750,8 @@ with gr.Blocks(title="Text Tool", fill_height=True, css=LAYOUT_CSS) as demo:
 
     active_tab.change(
         select_tab,
-        inputs=[sections_state, active_index_state, active_tab, editor],
-        outputs=[sections_state, active_index_state, editor, tab_title, combined, status],
+        inputs=[sections_state, active_index_state, active_tab, editor, code_snippet],
+        outputs=[sections_state, active_index_state, editor, code_snippet, tab_title, combined, status],
     )
 
     editor.blur(
@@ -699,43 +760,50 @@ with gr.Blocks(title="Text Tool", fill_height=True, css=LAYOUT_CSS) as demo:
         outputs=[sections_state, combined, status],
     )
 
+    code_snippet.blur(
+        update_active_code,
+        inputs=[sections_state, active_index_state, code_snippet],
+        outputs=[sections_state, status],
+    )
+
     tab_title.blur(
         rename_active_tab,
-        inputs=[sections_state, active_index_state, editor, tab_title],
+        inputs=[sections_state, active_index_state, editor, code_snippet, tab_title],
         outputs=[sections_state, active_tab, combined, status],
     )
     tab_title.submit(
         rename_active_tab,
-        inputs=[sections_state, active_index_state, editor, tab_title],
+        inputs=[sections_state, active_index_state, editor, code_snippet, tab_title],
         outputs=[sections_state, active_tab, combined, status],
     )
 
     rename_tab_button.click(
         rename_active_tab,
-        inputs=[sections_state, active_index_state, editor, tab_title],
+        inputs=[sections_state, active_index_state, editor, code_snippet, tab_title],
         outputs=[sections_state, active_tab, combined, status],
     )
 
     add_tab_button.click(
         add_tab,
-        inputs=[sections_state, active_index_state, editor],
-        outputs=[sections_state, active_index_state, active_tab, editor, tab_title, combined, status],
+        inputs=[sections_state, active_index_state, editor, code_snippet],
+        outputs=[sections_state, active_index_state, active_tab, editor, code_snippet, tab_title, combined, status],
     )
 
     delete_tab_button.click(
         delete_tab,
-        inputs=[sections_state, active_index_state, editor],
-        outputs=[sections_state, active_index_state, active_tab, editor, tab_title, combined, status],
+        inputs=[sections_state, active_index_state, editor, code_snippet],
+        outputs=[sections_state, active_index_state, active_tab, editor, code_snippet, tab_title, combined, status],
     )
 
     move_up_button.click(
         move_tab_up,
-        inputs=[sections_state, active_index_state, editor],
+        inputs=[sections_state, active_index_state, editor, code_snippet],
         outputs=[
             sections_state,
             active_index_state,
             active_tab,
             editor,
+            code_snippet,
             tab_title,
             combined,
             status,
@@ -744,12 +812,13 @@ with gr.Blocks(title="Text Tool", fill_height=True, css=LAYOUT_CSS) as demo:
 
     move_down_button.click(
         move_tab_down,
-        inputs=[sections_state, active_index_state, editor],
+        inputs=[sections_state, active_index_state, editor, code_snippet],
         outputs=[
             sections_state,
             active_index_state,
             active_tab,
             editor,
+            code_snippet,
             tab_title,
             combined,
             status,
@@ -758,7 +827,7 @@ with gr.Blocks(title="Text Tool", fill_height=True, css=LAYOUT_CSS) as demo:
 
     copy_button.click(
         copy_and_save_current,
-        inputs=[drafts_state, history, sections_state, active_index_state, editor, draft_title, user_name],
+        inputs=[drafts_state, history, sections_state, active_index_state, editor, code_snippet, draft_title, user_name],
         outputs=[drafts_state, history, sections_state, combined, status, copy_payload],
     ).then(
         lambda text: "Saved and copied.",
