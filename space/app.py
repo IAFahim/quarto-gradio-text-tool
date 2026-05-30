@@ -98,6 +98,7 @@ def new_section(title: str | None = None, text: str = "") -> dict[str, str]:
         "title": title or "Untitled",
         "text": text or "",
         "code": "",
+        "console": "",
     }
 
 
@@ -118,6 +119,7 @@ def normalize_sections(draft: dict[str, Any]) -> list[dict[str, str]]:
                     "title": str(section.get("title") or f"Tab {index}"),
                     "text": str(section.get("text") or ""),
                     "code": str(section.get("code") or ""),
+                    "console": str(section.get("console") or ""),
                 }
             )
         if sections:
@@ -164,12 +166,15 @@ def commit_editor_text(
     active_index: int,
     text: str | None,
     code: str | None = None,
+    console: str | None = None,
 ) -> list[dict[str, str]]:
     sections = [dict(section) for section in (sections or blank_sections())]
     active_index = max(0, min(active_index or 0, len(sections) - 1))
     sections[active_index]["text"] = text or ""
     if code is not None:
         sections[active_index]["code"] = code or ""
+    if console is not None:
+        sections[active_index]["console"] = console or ""
     return sections
 
 
@@ -283,6 +288,8 @@ def load_app(client_tz: str | None = None) -> tuple[Any, ...]:
     draft = find_draft_by_label(drafts, selected, client_tz=client_tz) if selected else None
     sections = draft["sections"] if draft else blank_sections()
     active_index = 0
+    console_text = sections[active_index].get("console", "")
+    console_html = to_html_console(console_text) if console_text else "<pre style='margin: 0; font-family: inherit; color: #888;'>Output from running the code snippet will appear here...</pre>"
     return (
         drafts,
         gr.update(choices=choices, value=selected),
@@ -295,6 +302,8 @@ def load_app(client_tz: str | None = None) -> tuple[Any, ...]:
         draft.get("title", "Untitled draft") if draft else "Untitled draft",
         combine_sections(sections),
         f"Loaded {len(drafts)} recent draft(s).",
+        console_html,
+        console_text,
     )
 
 
@@ -307,6 +316,8 @@ def select_history(drafts: list[dict[str, Any]], selected_label: str | None, cli
     draft = find_draft_by_label(drafts or [], selected_label, client_tz=client_tz)
     sections = draft["sections"] if draft else blank_sections()
     active_index = 0
+    console_text = sections[active_index].get("console", "")
+    console_html = to_html_console(console_text) if console_text else "<pre style='margin: 0; font-family: inherit; color: #888;'>Output from running the code snippet will appear here...</pre>"
     return (
         sections,
         active_index,
@@ -317,11 +328,14 @@ def select_history(drafts: list[dict[str, Any]], selected_label: str | None, cli
         draft.get("title", "Untitled draft") if draft else "Untitled draft",
         combine_sections(sections),
         "Loaded selection." if draft else "No draft selected.",
+        console_html,
+        console_text,
     )
 
 
 def new_draft() -> tuple[Any, ...]:
     sections = blank_sections()
+    placeholder = "<pre style='margin: 0; font-family: inherit; color: #888;'>Output from running the code snippet will appear here...</pre>"
     return (
         gr.update(value=None),
         sections,
@@ -333,6 +347,8 @@ def new_draft() -> tuple[Any, ...]:
         "Untitled draft",
         "",
         "New draft.",
+        placeholder,
+        "",
     )
 
 
@@ -343,12 +359,13 @@ def save_current(
     active_index: int,
     editor_text: str,
     code_text: str,
+    console_text: str,
     draft_title: str,
     user_name: str,
     client_tz: str | None = None,
 ) -> tuple[Any, ...]:
     drafts = list(drafts or [])
-    sections = commit_editor_text(sections, active_index, editor_text, code_text)
+    sections = commit_editor_text(sections, active_index, editor_text, code_text, console_text)
     timestamp = now_iso()
     existing = find_draft_by_label(drafts, selected_label, client_tz=client_tz)
     title = (draft_title or "").strip() or title_from_sections(sections)
@@ -392,12 +409,13 @@ def copy_and_save_current(
     active_index: int,
     editor_text: str,
     code_text: str,
+    console_text: str,
     draft_title: str,
     user_name: str,
     client_tz: str | None = None,
 ) -> tuple[Any, ...]:
     drafts = list(drafts or [])
-    sections = commit_editor_text(sections, active_index, editor_text, code_text)
+    sections = commit_editor_text(sections, active_index, editor_text, code_text, console_text)
     timestamp = now_iso()
     existing = find_draft_by_label(drafts, selected_label, client_tz=client_tz)
     title = (draft_title or "").strip() or title_from_sections(sections)
@@ -442,12 +460,13 @@ def fork_current(
     active_index: int,
     editor_text: str,
     code_text: str,
+    console_text: str,
     draft_title: str,
     user_name: str,
     client_tz: str | None = None,
 ) -> tuple[Any, ...]:
     drafts = list(drafts or [])
-    sections = commit_editor_text(sections, active_index, editor_text, code_text)
+    sections = commit_editor_text(sections, active_index, editor_text, code_text, console_text)
     timestamp = now_iso()
     forked = {
         "id": str(uuid.uuid4()),
@@ -470,6 +489,8 @@ def delete_current(drafts: list[dict[str, Any]], selected_label: str | None, cli
     selected = choices[0] if choices else None
     draft = find_draft_by_label(drafts, selected, client_tz=client_tz) if selected else None
     sections = draft["sections"] if draft else blank_sections()
+    console_text = sections[0].get("console", "")
+    console_html = to_html_console(console_text) if console_text else "<pre style='margin: 0; font-family: inherit; color: #888;'>Output from running the code snippet will appear here...</pre>"
     return (
         drafts,
         gr.update(choices=choices, value=selected),
@@ -482,6 +503,8 @@ def delete_current(drafts: list[dict[str, Any]], selected_label: str | None, cli
         draft.get("title", "Untitled draft") if draft else "Untitled draft",
         combine_sections(sections),
         "Deleted draft.",
+        console_html,
+        console_text,
     )
 
 
@@ -491,9 +514,12 @@ def select_tab(
     active_tab: str | None,
     editor_text: str,
     code_text: str,
+    console_text: str,
 ) -> tuple[Any, ...]:
-    sections = commit_editor_text(sections, active_index, editor_text, code_text)
+    sections = commit_editor_text(sections, active_index, editor_text, code_text, console_text)
     next_index = parse_tab_index(active_tab, sections)
+    next_console = sections[next_index].get("console", "")
+    next_console_html = to_html_console(next_console) if next_console else "<pre style='margin: 0; font-family: inherit; color: #888;'>Output from running the code snippet will appear here...</pre>"
     return (
         sections,
         next_index,
@@ -502,6 +528,8 @@ def select_tab(
         sections[next_index]["title"],
         combine_sections(sections),
         "",  # Clear status
+        next_console_html,
+        next_console,
     )
 
 
@@ -544,8 +572,9 @@ def add_tab(
     active_index: int,
     editor_text: str,
     code_text: str,
+    console_text: str,
 ) -> tuple[Any, ...]:
-    sections = commit_editor_text(sections, active_index, editor_text, code_text)
+    sections = commit_editor_text(sections, active_index, editor_text, code_text, console_text)
     sections.append(new_section(f"Tab {len(sections) + 1}"))
     next_index = len(sections) - 1
     return (
@@ -557,6 +586,8 @@ def add_tab(
         sections[next_index]["title"],
         combine_sections(sections),
         "Added tab.",
+        "<pre style='margin: 0; font-family: inherit; color: #888;'>Output from running the code snippet will appear here...</pre>",
+        "",
     )
 
 
@@ -565,11 +596,14 @@ def delete_tab(
     active_index: int,
     editor_text: str,
     code_text: str,
+    console_text: str,
 ) -> tuple[Any, ...]:
-    sections = commit_editor_text(sections, active_index, editor_text, code_text)
+    sections = commit_editor_text(sections, active_index, editor_text, code_text, console_text)
     if len(sections) > 1:
         del sections[max(0, min(active_index or 0, len(sections) - 1))]
     next_index = max(0, min(active_index or 0, len(sections) - 1))
+    next_console = sections[next_index].get("console", "")
+    next_console_html = to_html_console(next_console) if next_console else "<pre style='margin: 0; font-family: inherit; color: #888;'>Output from running the code snippet will appear here...</pre>"
     return (
         sections,
         next_index,
@@ -579,6 +613,8 @@ def delete_tab(
         sections[next_index]["title"],
         combine_sections(sections),
         "Deleted tab." if len(sections) > 1 else "Kept the last tab.",
+        next_console_html,
+        next_console,
     )
 
 
@@ -587,8 +623,9 @@ def move_tab_up(
     active_index: int,
     editor_text: str,
     code_text: str,
+    console_text: str,
 ) -> tuple[Any, ...]:
-    sections = commit_editor_text(sections, active_index, editor_text, code_text)
+    sections = commit_editor_text(sections, active_index, editor_text, code_text, console_text)
     if active_index > 0:
         sections[active_index], sections[active_index - 1] = sections[active_index - 1], sections[active_index]
         next_index = active_index - 1
@@ -596,6 +633,8 @@ def move_tab_up(
     else:
         next_index = active_index
         msg = "Already at the top."
+    next_console = sections[next_index].get("console", "")
+    next_console_html = to_html_console(next_console) if next_console else "<pre style='margin: 0; font-family: inherit; color: #888;'>Output from running the code snippet will appear here...</pre>"
     return (
         sections,
         next_index,
@@ -605,6 +644,8 @@ def move_tab_up(
         sections[next_index]["title"],
         combine_sections(sections),
         msg,
+        next_console_html,
+        next_console,
     )
 
 
@@ -613,8 +654,9 @@ def move_tab_down(
     active_index: int,
     editor_text: str,
     code_text: str,
+    console_text: str,
 ) -> tuple[Any, ...]:
-    sections = commit_editor_text(sections, active_index, editor_text, code_text)
+    sections = commit_editor_text(sections, active_index, editor_text, code_text, console_text)
     if active_index < len(sections) - 1:
         sections[active_index], sections[active_index + 1] = sections[active_index + 1], sections[active_index]
         next_index = active_index + 1
@@ -622,6 +664,8 @@ def move_tab_down(
     else:
         next_index = active_index
         msg = "Already at the bottom."
+    next_console = sections[next_index].get("console", "")
+    next_console_html = to_html_console(next_console) if next_console else "<pre style='margin: 0; font-family: inherit; color: #888;'>Output from running the code snippet will appear here...</pre>"
     return (
         sections,
         next_index,
@@ -631,6 +675,8 @@ def move_tab_down(
         sections[next_index]["title"],
         combine_sections(sections),
         msg,
+        next_console_html,
+        next_console,
     )
 
 
@@ -642,7 +688,7 @@ def toggle_sidebar(open_state: bool) -> tuple[Any, ...]:
 
 async def run_local_cmd(cmd: str, session_id: str):
     if not cmd.strip():
-        yield to_html_console("Error: Code snippet is empty."), gr.update(visible=True), gr.update(visible=False)
+        yield to_html_console("Error: Code snippet is empty."), gr.update(visible=True), gr.update(visible=False), "Error: Code snippet is empty."
         return
 
     if session_id in active_processes:
@@ -652,7 +698,7 @@ async def run_local_cmd(cmd: str, session_id: str):
             pass
         del active_processes[session_id]
 
-    yield to_html_console("Starting command...\n"), gr.update(visible=False), gr.update(visible=True)
+    yield to_html_console("Starting command...\n"), gr.update(visible=False), gr.update(visible=True), "Starting command...\n"
     try:
         proc = await asyncio.create_subprocess_shell(
             cmd,
@@ -667,15 +713,15 @@ async def run_local_cmd(cmd: str, session_id: str):
             if not line:
                 break
             output += line.decode(errors="replace")
-            yield to_html_console(output), gr.update(visible=False), gr.update(visible=True)
+            yield to_html_console(output), gr.update(visible=False), gr.update(visible=True), output
                 
         rc = await proc.wait()
         output += f"\n--- Process exited with code {rc} ---"
         if session_id in active_processes:
             del active_processes[session_id]
-        yield to_html_console(output), gr.update(visible=True), gr.update(visible=False)
+        yield to_html_console(output), gr.update(visible=True), gr.update(visible=False), output
     except Exception as e:
-        yield to_html_console(f"Error executing command: {e}"), gr.update(visible=True), gr.update(visible=False)
+        yield to_html_console(f"Error executing command: {e}"), gr.update(visible=True), gr.update(visible=False), f"Error executing command: {e}"
 
 
 def handle_stop_click(run_loc: str, session_id: str):
@@ -686,21 +732,22 @@ def handle_stop_click(run_loc: str, session_id: str):
             except Exception:
                 pass
             del active_processes[session_id]
-        return to_html_console("--- Process terminated by user ---"), gr.update(visible=True), gr.update(visible=False)
+        return to_html_console("--- Process terminated by user ---"), gr.update(visible=True), gr.update(visible=False), "--- Process terminated by user ---"
     else:
-        return gr.skip(), gr.skip(), gr.skip()
+        return gr.skip(), gr.skip(), gr.skip(), gr.skip()
 
 
 async def handle_run_click(cmd: str, run_loc: str, session_id: str):
     if run_loc == "Local System (Subprocess)":
-        async for out, r_vis, s_vis in run_local_cmd(cmd, session_id):
-            yield out, r_vis, s_vis
+        async for out, r_vis, s_vis, raw_out in run_local_cmd(cmd, session_id):
+            yield out, r_vis, s_vis, raw_out
     else:
-        yield gr.skip(), gr.skip(), gr.skip()
+        yield gr.skip(), gr.skip(), gr.skip(), gr.skip()
 
 
 with gr.Blocks(title="Text Tool", fill_height=True, css=LAYOUT_CSS) as demo:
     client_timezone = gr.Textbox(visible=False, value="0")
+    hidden_console = gr.Textbox(visible=False, elem_id="hidden-console-saver")
     drafts_state = gr.State([])
     sections_state = gr.State(blank_sections())
     active_index_state = gr.State(0)
@@ -779,7 +826,7 @@ with gr.Blocks(title="Text Tool", fill_height=True, css=LAYOUT_CSS) as demo:
                 active_tab = gr.Dropdown(label="Section", show_label=False, choices=[], interactive=True, scale=4)
                 move_up_button = gr.Button("◀", scale=0, elem_classes=["arrow-btn"])
                 move_down_button = gr.Button("▶", scale=0, elem_classes=["arrow-btn"])
-                delete_tab_button = gr.Button("🗑️ Delete section", scale=0, variant="stop")
+                delete_tab_button = gr.Button("Delete section", scale=0, variant="stop")
             rename_tab_button = gr.Button("Rename", visible=False)
             save_button = gr.Button("Save", visible=False)
 
@@ -815,6 +862,8 @@ with gr.Blocks(title="Text Tool", fill_height=True, css=LAYOUT_CSS) as demo:
             draft_title,
             combined,
             status,
+            console_output,
+            hidden_console,
         ],
     )
 
@@ -839,6 +888,8 @@ with gr.Blocks(title="Text Tool", fill_height=True, css=LAYOUT_CSS) as demo:
             draft_title,
             combined,
             status,
+            console_output,
+            hidden_console,
         ],
     )
 
@@ -855,18 +906,20 @@ with gr.Blocks(title="Text Tool", fill_height=True, css=LAYOUT_CSS) as demo:
             draft_title,
             combined,
             status,
+            console_output,
+            hidden_console,
         ],
     )
 
     save_button.click(
         save_current,
-        inputs=[drafts_state, history, sections_state, active_index_state, editor, code_snippet, draft_title, user_name, client_timezone],
+        inputs=[drafts_state, history, sections_state, active_index_state, editor, code_snippet, hidden_console, draft_title, user_name, client_timezone],
         outputs=[drafts_state, history, sections_state, combined, status],
     )
 
     fork_button.click(
         fork_current,
-        inputs=[drafts_state, sections_state, active_index_state, editor, code_snippet, draft_title, user_name, client_timezone],
+        inputs=[drafts_state, sections_state, active_index_state, editor, code_snippet, hidden_console, draft_title, user_name, client_timezone],
         outputs=[drafts_state, history, draft_title, status],
     )
 
@@ -885,13 +938,15 @@ with gr.Blocks(title="Text Tool", fill_height=True, css=LAYOUT_CSS) as demo:
             draft_title,
             combined,
             status,
+            console_output,
+            hidden_console,
         ],
     )
 
     active_tab.change(
         select_tab,
-        inputs=[sections_state, active_index_state, active_tab, editor, code_snippet],
-        outputs=[sections_state, active_index_state, editor, code_snippet, tab_title, combined, status],
+        inputs=[sections_state, active_index_state, active_tab, editor, code_snippet, hidden_console],
+        outputs=[sections_state, active_index_state, editor, code_snippet, tab_title, combined, status, console_output, hidden_console],
     )
 
     editor.blur(
@@ -925,19 +980,19 @@ with gr.Blocks(title="Text Tool", fill_height=True, css=LAYOUT_CSS) as demo:
 
     add_tab_button.click(
         add_tab,
-        inputs=[sections_state, active_index_state, editor, code_snippet],
-        outputs=[sections_state, active_index_state, active_tab, editor, code_snippet, tab_title, combined, status],
+        inputs=[sections_state, active_index_state, editor, code_snippet, hidden_console],
+        outputs=[sections_state, active_index_state, active_tab, editor, code_snippet, tab_title, combined, status, console_output, hidden_console],
     )
 
     delete_tab_button.click(
         delete_tab,
-        inputs=[sections_state, active_index_state, editor, code_snippet],
-        outputs=[sections_state, active_index_state, active_tab, editor, code_snippet, tab_title, combined, status],
+        inputs=[sections_state, active_index_state, editor, code_snippet, hidden_console],
+        outputs=[sections_state, active_index_state, active_tab, editor, code_snippet, tab_title, combined, status, console_output, hidden_console],
     )
 
     move_up_button.click(
         move_tab_up,
-        inputs=[sections_state, active_index_state, editor, code_snippet],
+        inputs=[sections_state, active_index_state, editor, code_snippet, hidden_console],
         outputs=[
             sections_state,
             active_index_state,
@@ -947,12 +1002,14 @@ with gr.Blocks(title="Text Tool", fill_height=True, css=LAYOUT_CSS) as demo:
             tab_title,
             combined,
             status,
+            console_output,
+            hidden_console,
         ],
     )
 
     move_down_button.click(
         move_tab_down,
-        inputs=[sections_state, active_index_state, editor, code_snippet],
+        inputs=[sections_state, active_index_state, editor, code_snippet, hidden_console],
         outputs=[
             sections_state,
             active_index_state,
@@ -962,12 +1019,14 @@ with gr.Blocks(title="Text Tool", fill_height=True, css=LAYOUT_CSS) as demo:
             tab_title,
             combined,
             status,
+            console_output,
+            hidden_console,
         ],
     )
 
     copy_button.click(
         copy_and_save_current,
-        inputs=[drafts_state, history, sections_state, active_index_state, editor, code_snippet, draft_title, user_name, client_timezone],
+        inputs=[drafts_state, history, sections_state, active_index_state, editor, code_snippet, hidden_console, draft_title, user_name, client_timezone],
         outputs=[drafts_state, history, sections_state, combined, status, copy_payload],
     ).then(
         lambda text: "Saved and copied.",
@@ -979,7 +1038,7 @@ with gr.Blocks(title="Text Tool", fill_height=True, css=LAYOUT_CSS) as demo:
     run_snippet_btn.click(
         fn=handle_run_click,
         inputs=[code_snippet, run_loc, session_id_state],
-        outputs=[console_output, run_snippet_btn, stop_snippet_btn],
+        outputs=[console_output, run_snippet_btn, stop_snippet_btn, hidden_console],
         js="""(code, runLoc) => {
             if (runLoc === "Local Bridge (ws://localhost:7890)") {
                 const consoleEl = document.getElementById('snippet-console');
@@ -1000,6 +1059,12 @@ with gr.Blocks(title="Text Tool", fill_height=True, css=LAYOUT_CSS) as demo:
                         .replace(/>/g, "&gt;");
                     consoleEl.innerHTML = `<pre style="margin: 0; font-family: inherit;">${escaped}</pre>`;
                     consoleEl.scrollTop = consoleEl.scrollHeight;
+                    
+                    const hiddenEl = document.querySelector('#hidden-console-saver textarea');
+                    if (hiddenEl) {
+                        hiddenEl.value = consoleText;
+                        hiddenEl.dispatchEvent(new Event('input', { bubbles: true }));
+                    }
                 };
                 
                 updateConsole("");
@@ -1066,7 +1131,7 @@ with gr.Blocks(title="Text Tool", fill_height=True, css=LAYOUT_CSS) as demo:
     stop_snippet_btn.click(
         fn=handle_stop_click,
         inputs=[run_loc, session_id_state],
-        outputs=[console_output, run_snippet_btn, stop_snippet_btn],
+        outputs=[console_output, run_snippet_btn, stop_snippet_btn, hidden_console],
         js="""(runLoc) => {
             if (runLoc === "Local Bridge (ws://localhost:7890)") {
                 if (window.snippetRunner && window.snippetRunner.socket) {
