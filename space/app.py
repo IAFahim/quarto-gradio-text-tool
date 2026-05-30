@@ -4,6 +4,8 @@ import json
 import os
 import tempfile
 import uuid
+import subprocess
+import asyncio
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
 from typing import Any
@@ -15,6 +17,11 @@ DEFAULT_USER_NAME = os.getenv("TEXT_TOOL_USER_NAME", "IAFahim")
 LOCAL_DATA_DIR = Path(__file__).resolve().parent / "data"
 DATA_DIR = Path("/data") if Path("/data").is_dir() and os.access("/data", os.W_OK) else LOCAL_DATA_DIR
 HISTORY_PATH = DATA_DIR / "history.json"
+
+active_processes = {}
+is_hf_space = os.getenv("SPACE_ID") is not None
+default_run_loc = "Local Bridge (ws://localhost:7890)" if is_hf_space else "Local System (Subprocess)"
+
 LAYOUT_CSS = """
 .app-shell {
     align-items: flex-start !important;
@@ -51,6 +58,11 @@ LAYOUT_CSS = """
     max-width: 48px !important;
     padding-left: 4px !important;
     padding-right: 4px !important;
+}
+#snippet-console textarea {
+    font-family: monospace !important;
+    background-color: #121212 !important;
+    color: #00ff66 !important;
 }
 """
 
@@ -611,12 +623,72 @@ def toggle_sidebar(open_state: bool) -> tuple[Any, ...]:
     return next_state, gr.update(visible=next_state), gr.update(elem_classes=editor_classes), "☰"
 
 
+async def run_local_cmd(cmd: str, session_id: str):
+    if not cmd.strip():
+        yield "Error: Code snippet is empty.", gr.update(visible=True), gr.update(visible=False)
+        return
+
+    if session_id in active_processes:
+        try:
+            active_processes[session_id].kill()
+        except Exception:
+            pass
+        del active_processes[session_id]
+
+    yield "Starting command...\n", gr.update(visible=False), gr.update(visible=True)
+    try:
+        proc = await asyncio.create_subprocess_shell(
+            cmd,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.STDOUT,
+        )
+        active_processes[session_id] = proc
+        
+        output = ""
+        while True:
+            line = await proc.stdout.readline()
+            if not line:
+                break
+            output += line.decode(errors="replace")
+            yield output, gr.update(visible=False), gr.update(visible=True)
+                
+        rc = await proc.wait()
+        output += f"\n--- Process exited with code {rc} ---"
+        if session_id in active_processes:
+            del active_processes[session_id]
+        yield output, gr.update(visible=True), gr.update(visible=False)
+    except Exception as e:
+        yield f"Error executing command: {e}", gr.update(visible=True), gr.update(visible=False)
+
+
+def handle_stop_click(run_loc: str, session_id: str):
+    if run_loc == "Local System (Subprocess)":
+        if session_id in active_processes:
+            try:
+                active_processes[session_id].kill()
+            except Exception:
+                pass
+            del active_processes[session_id]
+        return "--- Process terminated by user ---", gr.update(visible=True), gr.update(visible=False)
+    else:
+        return gr.skip(), gr.update(visible=True), gr.update(visible=False)
+
+
+async def handle_run_click(cmd: str, run_loc: str, session_id: str):
+    if run_loc == "Local System (Subprocess)":
+        async for out, r_vis, s_vis in run_local_cmd(cmd, session_id):
+            yield out, r_vis, s_vis
+    else:
+        yield gr.skip(), gr.update(visible=False), gr.update(visible=True)
+
+
 with gr.Blocks(title="Text Tool", fill_height=True, css=LAYOUT_CSS) as demo:
     client_timezone = gr.Textbox(visible=False, value="0")
     drafts_state = gr.State([])
     sections_state = gr.State(blank_sections())
     active_index_state = gr.State(0)
     sidebar_open_state = gr.State(True)
+    session_id_state = gr.State(lambda: str(uuid.uuid4()))
 
     with gr.Row(elem_classes="app-shell"):
         with gr.Column(scale=1, min_width=280, elem_classes="sidebar-panel") as sidebar:
@@ -665,6 +737,28 @@ with gr.Blocks(title="Text Tool", fill_height=True, css=LAYOUT_CSS) as demo:
                 lines=3,
                 max_lines=10,
                 elem_classes="code-snippet",
+            )
+
+            with gr.Row():
+                run_loc = gr.Dropdown(
+                    choices=["Local System (Subprocess)", "Local Bridge (ws://localhost:7890)"],
+                    value=default_run_loc,
+                    label="Run Location",
+                    show_label=False,
+                    container=False,
+                    scale=2,
+                )
+                run_snippet_btn = gr.Button("▶ Run", variant="secondary", scale=1, elem_id="run-snippet-btn")
+                stop_snippet_btn = gr.Button("⏹ Stop", variant="stop", scale=1, elem_id="stop-snippet-btn", visible=False)
+
+            console_output = gr.Textbox(
+                label="Console Output",
+                placeholder="Output from running the code snippet will appear here...",
+                lines=6,
+                max_lines=15,
+                interactive=False,
+                elem_id="snippet-console",
+                elem_classes=["code-snippet"],
             )
 
             editor = gr.Textbox(label="Text", lines=24, max_lines=80, elem_classes="main-editor")
@@ -870,6 +964,142 @@ with gr.Blocks(title="Text Tool", fill_height=True, css=LAYOUT_CSS) as demo:
         js="(text) => { navigator.clipboard.writeText(text || ''); return 'Saved and copied.'; }",
     )
 
+    run_snippet_btn.click(
+        fn=handle_run_click,
+        inputs=[code_snippet, run_loc, session_id_state],
+        outputs=[console_output, run_snippet_btn, stop_snippet_btn],
+        js="""(code, runLoc) => {
+            if (runLoc === "Local Bridge (ws://localhost:7890)") {
+                const consoleEl = document.querySelector('#snippet-console textarea');
+                const runBtn = document.getElementById('run-snippet-btn');
+                const stopBtn = document.getElementById('stop-snippet-btn');
+                
+                if (runBtn) runBtn.style.setProperty('display', 'none', 'important');
+                if (stopBtn) stopBtn.style.setProperty('display', 'block', 'important');
+                
+                if (consoleEl) {
+                    consoleEl.value = "Connecting to local bridge at ws://localhost:7890...\\n";
+                    consoleEl.scrollTop = consoleEl.scrollHeight;
+                }
+                
+                if (window.snippetRunner && window.snippetRunner.socket) {
+                    try { window.snippetRunner.socket.close(); } catch(e) {}
+                }
+                
+                let socket;
+                try {
+                    socket = new WebSocket("ws://127.0.0.1:7890");
+                    window.snippetRunner = { socket: socket };
+                } catch(err) {
+                    if (consoleEl) {
+                        consoleEl.value += "Error creating WebSocket: " + err.message + "\\n";
+                    }
+                    if (runBtn) runBtn.style.setProperty('display', 'block', 'important');
+                    if (stopBtn) stopBtn.style.setProperty('display', 'none', 'important');
+                    return;
+                }
+                
+                socket.onopen = () => {
+                    if (consoleEl) {
+                        consoleEl.value += "Connected. Performing handshake...\\n";
+                        consoleEl.scrollTop = consoleEl.scrollHeight;
+                    }
+                    socket.send(JSON.stringify({ type: "handshake", version: 2 }));
+                };
+                
+                socket.onmessage = (event) => {
+                    try {
+                        const msg = JSON.parse(event.data);
+                        if (msg.type === "handshake") {
+                            if (consoleEl) {
+                                consoleEl.value += "Handshake completed. Executing snippet...\\n\\n";
+                                consoleEl.scrollTop = consoleEl.scrollHeight;
+                            }
+                            socket.send(JSON.stringify({
+                                type: "run",
+                                id: "gradio-snippet",
+                                code: code,
+                                kind: "cli",
+                                timeout: 300
+                            }));
+                        } else if (msg.type === "stdout" || msg.type === "stderr") {
+                            if (consoleEl) {
+                                consoleEl.value += msg.data;
+                                consoleEl.scrollTop = consoleEl.scrollHeight;
+                            }
+                        } else if (msg.type === "exit") {
+                            if (consoleEl) {
+                                consoleEl.value += "\\n--- Process exited with code " + msg.code + " (" + msg.elapsed_ms + "ms) ---\\n";
+                                consoleEl.scrollTop = consoleEl.scrollHeight;
+                            }
+                            socket.close();
+                        } else if (msg.type === "error") {
+                            if (consoleEl) {
+                                consoleEl.value += "\\nError: " + msg.message + "\\n";
+                                consoleEl.scrollTop = consoleEl.scrollHeight;
+                            }
+                            socket.close();
+                        }
+                    } catch(e) {
+                        if (consoleEl) {
+                            consoleEl.value += "\\nError parsing message: " + e.message + "\\n";
+                        }
+                    }
+                };
+                
+                socket.onerror = (err) => {
+                    if (consoleEl) {
+                        consoleEl.value += "\\nWebSocket error occurred.\\n";
+                        consoleEl.scrollTop = consoleEl.scrollHeight;
+                    }
+                };
+                
+                socket.onclose = () => {
+                    if (consoleEl) {
+                        consoleEl.value += "\\nBridge connection closed.\\n";
+                        consoleEl.scrollTop = consoleEl.scrollHeight;
+                    }
+                    if (runBtn) runBtn.style.setProperty('display', 'block', 'important');
+                    if (stopBtn) stopBtn.style.setProperty('display', 'none', 'important');
+                };
+            }
+        }"""
+    )
+
+    stop_snippet_btn.click(
+        fn=handle_stop_click,
+        inputs=[run_loc, session_id_state],
+        outputs=[console_output, run_snippet_btn, stop_snippet_btn],
+        js="""(runLoc) => {
+            if (runLoc === "Local Bridge (ws://localhost:7890)") {
+                if (window.snippetRunner && window.snippetRunner.socket) {
+                    window.snippetRunner.socket.send(JSON.stringify({ type: "cancel", id: "gradio-snippet" }));
+                    window.snippetRunner.socket.close();
+                }
+            }
+        }"""
+    )
+
+    # Reset console when switching tabs or drafts
+    active_tab.change(
+        lambda: ("", gr.update(visible=True), gr.update(visible=False)),
+        outputs=[console_output, run_snippet_btn, stop_snippet_btn]
+    )
+    history.change(
+        lambda: ("", gr.update(visible=True), gr.update(visible=False)),
+        outputs=[console_output, run_snippet_btn, stop_snippet_btn]
+    )
+    new_button.click(
+        lambda: ("", gr.update(visible=True), gr.update(visible=False)),
+        outputs=[console_output, run_snippet_btn, stop_snippet_btn]
+    )
+    delete_button.click(
+        lambda: ("", gr.update(visible=True), gr.update(visible=False)),
+        outputs=[console_output, run_snippet_btn, stop_snippet_btn]
+    )
+
 
 if __name__ == "__main__":
     demo.launch()
+
+
