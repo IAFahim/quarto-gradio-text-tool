@@ -1,0 +1,19 @@
+project:
+  type: website
+  output-dir: _site
+
+website:
+  title: "Text Tool"
+  navbar:
+    left:
+      - href: index.qmd
+        text: Tool
+      - href: setup.qmd
+        text: Setup
+
+format:
+  html:
+    theme: cosmo
+    toc: false
+    page-layout: full
+    css: styles.css

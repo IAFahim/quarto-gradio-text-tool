@@ -1,0 +1,16 @@
+---
+title: "Setup"
+---
+
+This site embeds a Gradio app hosted on Hugging Face Spaces.
+
+The app stores saved drafts in a mounted Hugging Face Storage Bucket at `/data`.
+When run locally, it falls back to `space/data/history.json`.
+
+Useful commands:
+
+```bash
+uv run python space/app.py
+quarto render
+quarto publish gh-pages --no-browser
+```
