@@ -15,6 +15,32 @@ DEFAULT_USER_NAME = os.getenv("TEXT_TOOL_USER_NAME", "IAFahim")
 LOCAL_DATA_DIR = Path(__file__).resolve().parent / "data"
 DATA_DIR = Path("/data") if Path("/data").is_dir() and os.access("/data", os.W_OK) else LOCAL_DATA_DIR
 HISTORY_PATH = DATA_DIR / "history.json"
+LAYOUT_CSS = """
+.app-shell {
+    align-items: flex-start !important;
+    gap: 16px !important;
+}
+.sidebar-panel {
+    max-width: 300px !important;
+}
+.editor-panel {
+    max-width: 620px !important;
+}
+.sketch-top,
+.sketch-name,
+.sketch-bottom {
+    align-items: center !important;
+    flex-wrap: nowrap !important;
+}
+.sketch-top .form,
+.sketch-name .form,
+.sketch-bottom .form {
+    min-width: 0 !important;
+}
+.editor-panel textarea {
+    min-height: 520px !important;
+}
+"""
 
 def now_iso() -> str:
     return datetime.now(timezone.utc).replace(microsecond=0).isoformat()
@@ -457,14 +483,14 @@ def toggle_sidebar(open_state: bool) -> tuple[Any, ...]:
     return next_state, gr.update(visible=next_state), "☰"
 
 
-with gr.Blocks(title="Text Tool", fill_height=True, theme="gstaff/sketch") as demo:
+with gr.Blocks(title="Text Tool", fill_height=True, theme="gstaff/sketch", css=LAYOUT_CSS) as demo:
     drafts_state = gr.State([])
     sections_state = gr.State(blank_sections())
     active_index_state = gr.State(0)
     sidebar_open_state = gr.State(True)
 
-    with gr.Row():
-        with gr.Column(scale=1, min_width=280) as sidebar:
+    with gr.Row(elem_classes="app-shell"):
+        with gr.Column(scale=1, min_width=280, elem_classes="sidebar-panel") as sidebar:
             user_name = gr.Textbox(
                 value=DEFAULT_USER_NAME,
                 placeholder="Global",
@@ -484,8 +510,8 @@ with gr.Blocks(title="Text Tool", fill_height=True, theme="gstaff/sketch") as de
                 delete_button = gr.Button("Delete")
             gr.Markdown("Persistent HF storage")
 
-        with gr.Column(scale=3):
-            with gr.Row():
+        with gr.Column(scale=2, min_width=520, elem_classes="editor-panel"):
+            with gr.Row(elem_classes="sketch-top"):
                 toggle_button = gr.Button("☰", scale=0)
                 draft_title = gr.Textbox(
                     value="Untitled draft",
@@ -495,7 +521,7 @@ with gr.Blocks(title="Text Tool", fill_height=True, theme="gstaff/sketch") as de
                 )
                 copy_button = gr.Button("Copy", scale=0)
 
-            with gr.Row():
+            with gr.Row(elem_classes="sketch-name"):
                 tab_title = gr.Textbox(
                     label="Tab name",
                     show_label=False,
@@ -506,7 +532,7 @@ with gr.Blocks(title="Text Tool", fill_height=True, theme="gstaff/sketch") as de
 
             editor = gr.Textbox(label="Text", lines=24, max_lines=80)
 
-            with gr.Row():
+            with gr.Row(elem_classes="sketch-bottom"):
                 active_tab = gr.Dropdown(label="Section", show_label=False, choices=[], interactive=True, scale=4)
                 delete_tab_button = gr.Button("Delete section", scale=0)
             rename_tab_button = gr.Button("Rename", visible=False)
