@@ -671,7 +671,7 @@ def handle_stop_click(run_loc: str, session_id: str):
             del active_processes[session_id]
         return "--- Process terminated by user ---", gr.update(visible=True), gr.update(visible=False)
     else:
-        return gr.skip(), gr.update(visible=True), gr.update(visible=False)
+        return gr.skip(), gr.skip(), gr.skip()
 
 
 async def handle_run_click(cmd: str, run_loc: str, session_id: str):
@@ -679,7 +679,7 @@ async def handle_run_click(cmd: str, run_loc: str, session_id: str):
         async for out, r_vis, s_vis in run_local_cmd(cmd, session_id):
             yield out, r_vis, s_vis
     else:
-        yield gr.skip(), gr.update(visible=False), gr.update(visible=True)
+        yield gr.skip(), gr.skip(), gr.skip()
 
 
 with gr.Blocks(title="Text Tool", fill_height=True, css=LAYOUT_CSS) as demo:
@@ -731,12 +731,11 @@ with gr.Blocks(title="Text Tool", fill_height=True, css=LAYOUT_CSS) as demo:
                 )
                 add_tab_button = gr.Button("+ Tab", scale=0)
 
-            code_snippet = gr.Textbox(
+            code_snippet = gr.Code(
                 label="Code Snippet",
-                placeholder="Paste a code snippet here (it won't be copied in the main text output)...",
+                language="shell",
                 lines=3,
                 max_lines=10,
-                elem_classes="code-snippet",
             )
 
             with gr.Row():
@@ -754,8 +753,8 @@ with gr.Blocks(title="Text Tool", fill_height=True, css=LAYOUT_CSS) as demo:
             console_output = gr.Textbox(
                 label="Console Output",
                 placeholder="Output from running the code snippet will appear here...",
-                lines=6,
-                max_lines=15,
+                lines=10,
+                max_lines=30,
                 interactive=False,
                 elem_id="snippet-console",
                 elem_classes=["code-snippet"],
@@ -975,7 +974,7 @@ with gr.Blocks(title="Text Tool", fill_height=True, css=LAYOUT_CSS) as demo:
                 const stopBtn = document.getElementById('stop-snippet-btn');
                 
                 if (runBtn) runBtn.style.setProperty('display', 'none', 'important');
-                if (stopBtn) stopBtn.style.setProperty('display', 'block', 'important');
+                if (stopBtn) stopBtn.style.removeProperty('display');
                 
                 if (consoleEl) {
                     consoleEl.value = "Connecting to local bridge at ws://localhost:7890...\\n";
@@ -994,7 +993,7 @@ with gr.Blocks(title="Text Tool", fill_height=True, css=LAYOUT_CSS) as demo:
                     if (consoleEl) {
                         consoleEl.value += "Error creating WebSocket: " + err.message + "\\n";
                     }
-                    if (runBtn) runBtn.style.setProperty('display', 'block', 'important');
+                    if (runBtn) runBtn.style.removeProperty('display');
                     if (stopBtn) stopBtn.style.setProperty('display', 'none', 'important');
                     return;
                 }
@@ -1059,7 +1058,7 @@ with gr.Blocks(title="Text Tool", fill_height=True, css=LAYOUT_CSS) as demo:
                         consoleEl.value += "\\nBridge connection closed.\\n";
                         consoleEl.scrollTop = consoleEl.scrollHeight;
                     }
-                    if (runBtn) runBtn.style.setProperty('display', 'block', 'important');
+                    if (runBtn) runBtn.style.removeProperty('display');
                     if (stopBtn) stopBtn.style.setProperty('display', 'none', 'important');
                 };
             }
