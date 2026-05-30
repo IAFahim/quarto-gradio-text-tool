@@ -1,12 +1,5 @@
 [
   {
-    "objectID": "index.html",
-    "href": "index.html",
-    "title": "Text Tool",
-    "section": "",
-    "text": "Text Tool\n    Create, save, fork, and combine five text segments from one persistent Gradio workspace."
-  },
-  {
     "objectID": "setup.html",
     "href": "setup.html",
     "title": "Setup",
