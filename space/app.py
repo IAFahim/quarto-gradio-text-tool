@@ -16,211 +16,6 @@ LOCAL_DATA_DIR = Path(__file__).resolve().parent / "data"
 DATA_DIR = Path("/data") if Path("/data").is_dir() and os.access("/data", os.W_OK) else LOCAL_DATA_DIR
 HISTORY_PATH = DATA_DIR / "history.json"
 
-APP_CSS = """
-footer {display: none !important;}
-.gradio-container {
-    max-width: none !important;
-    min-height: 100vh !important;
-    padding: 0 !important;
-    background: #f7f7f8 !important;
-}
-.app-frame {
-    min-height: 100vh;
-    gap: 0 !important;
-    align-items: stretch !important;
-    background: #f7f7f8;
-}
-.sidebar {
-    min-height: 100vh;
-    max-width: 292px;
-    padding: 14px 10px;
-    border-right: 1px solid #e7e7e8;
-    background: #ffffff;
-    overflow: hidden;
-}
-.workspace {
-    min-width: 0;
-    padding: 16px 22px 22px;
-}
-.profile-input {
-    margin-bottom: 10px !important;
-}
-.profile-input input {
-    border: 0 !important;
-    background: transparent !important;
-    padding: 4px 2px !important;
-    font-size: 18px !important;
-    font-weight: 700 !important;
-    box-shadow: none !important;
-}
-.search-input {
-    margin: 8px 0 16px !important;
-}
-.search-input input {
-    border: 0 !important;
-    background: transparent !important;
-    box-shadow: none !important;
-    padding: 8px 4px !important;
-}
-.nav-button button,
-.side-button button {
-    justify-content: flex-start !important;
-    border: 0 !important;
-    background: #ffffff !important;
-    box-shadow: none !important;
-    font-weight: 500 !important;
-    min-height: 36px !important;
-    padding: 7px 10px !important;
-}
-.nav-button button:hover,
-.side-button button:hover {
-    background: #f4f4f5 !important;
-}
-.side-section h3 {
-    margin: 18px 0 6px !important;
-    padding: 0 2px;
-    font-size: 13px !important;
-    line-height: 1.2 !important;
-}
-.history-list {
-    max-height: calc(100vh - 280px);
-    overflow-y: auto;
-}
-.history-list label {
-    border: 0 !important;
-}
-.history-list .wrap {
-    gap: 2px !important;
-    border: 0 !important;
-    background: transparent !important;
-}
-.history-list .wrap label {
-    min-height: 36px;
-    padding: 7px 9px !important;
-    border-radius: 8px !important;
-    background: transparent !important;
-    font-size: 13px !important;
-}
-.history-list .wrap label:hover {
-    background: #f4f4f5 !important;
-}
-.history-list input:checked + span,
-.history-list label:has(input:checked) {
-    background: #ececec !important;
-}
-.sidebar-footer {
-    position: sticky;
-    bottom: 0;
-    margin-top: 18px;
-    padding: 10px 2px 0;
-    background: #ffffff;
-    color: #6b7280;
-    font-size: 12px;
-}
-.topbar {
-    align-items: center !important;
-    gap: 8px !important;
-    margin-bottom: 14px;
-    flex-wrap: nowrap !important;
-}
-.topbar button {
-    min-width: 40px !important;
-    width: auto !important;
-    padding: 0 12px !important;
-}
-.draft-title input {
-    height: 42px !important;
-    border: 0 !important;
-    background: #ffffff !important;
-    box-shadow: none !important;
-    font-size: 18px !important;
-    font-weight: 650 !important;
-}
-.tab-strip {
-    margin-bottom: 10px !important;
-}
-.tab-strip .wrap {
-    display: flex !important;
-    flex-wrap: wrap;
-    gap: 6px;
-    border: 0 !important;
-    background: transparent !important;
-    padding: 0 !important;
-}
-.tab-strip .wrap label {
-    border: 0 !important;
-    border-radius: 999px !important;
-    padding: 6px 10px !important;
-    background: #ffffff !important;
-    font-size: 13px !important;
-}
-.tab-strip .wrap label:hover,
-.tab-strip label:has(input:checked) {
-    background: #eef8f2 !important;
-}
-.tab-actions {
-    align-items: center !important;
-    gap: 8px !important;
-    margin-bottom: 12px;
-    flex-wrap: nowrap !important;
-}
-.tab-actions button {
-    min-height: 36px !important;
-    width: auto !important;
-    padding: 0 12px !important;
-}
-.tab-name input {
-    height: 38px !important;
-    border: 0 !important;
-    background: #ffffff !important;
-    box-shadow: none !important;
-}
-.editor textarea {
-    min-height: 55vh !important;
-    border: 0 !important;
-    background: #ffffff !important;
-    box-shadow: none !important;
-    font-size: 15px !important;
-    line-height: 1.55 !important;
-}
-.combined-panel {
-    margin-top: 12px;
-}
-.combined-panel textarea {
-    min-height: 180px !important;
-    border: 0 !important;
-    background: #ffffff !important;
-    box-shadow: none !important;
-    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace !important;
-    font-size: 13px !important;
-}
-.status-line {
-    min-height: 24px;
-    color: #667085;
-    font-size: 13px;
-}
-.gr-button {
-    border-radius: 8px !important;
-    min-height: 38px !important;
-}
-.primary {
-    background: #1f7a4d !important;
-    border-color: #1f7a4d !important;
-}
-@media (max-width: 840px) {
-    .sidebar {
-        max-width: none;
-        min-height: auto;
-        border-right: 0;
-        border-bottom: 1px solid #e7e7e8;
-    }
-    .workspace {
-        padding: 12px;
-    }
-}
-"""
-
-
 def now_iso() -> str:
     return datetime.now(timezone.utc).replace(microsecond=0).isoformat()
 
@@ -613,83 +408,67 @@ def toggle_sidebar(open_state: bool) -> tuple[Any, ...]:
     return next_state, gr.update(visible=next_state), "☰"
 
 
-theme = gr.themes.Default(
-    primary_hue="green",
-    secondary_hue="slate",
-    neutral_hue="slate",
-).set(
-    body_text_size="14px",
-    block_border_width="1px",
-    block_radius="8px",
-    button_large_radius="8px",
-)
-
-
-with gr.Blocks(title="Text Tool", fill_height=True, theme=theme, css=APP_CSS) as demo:
+with gr.Blocks(title="Text Tool", fill_height=True, theme="gstaff/sketch") as demo:
     drafts_state = gr.State([])
     sections_state = gr.State(blank_sections())
     active_index_state = gr.State(0)
     sidebar_open_state = gr.State(True)
 
-    with gr.Row(elem_classes="app-frame"):
-        with gr.Column(elem_classes="sidebar", min_width=280) as sidebar:
+    with gr.Row():
+        with gr.Column(scale=1, min_width=280) as sidebar:
             user_name = gr.Textbox(
                 value=DEFAULT_USER_NAME,
                 placeholder="Global",
                 label="Workspace",
                 show_label=False,
-                elem_classes="profile-input",
             )
-            new_button = gr.Button("+ New draft", elem_classes="nav-button")
+            new_button = gr.Button("+ New draft")
             search = gr.Textbox(
                 placeholder="Search drafts",
                 label="Search",
                 show_label=False,
-                elem_classes="search-input",
             )
-            gr.Markdown("### Recents", elem_classes="side-section")
-            history = gr.Radio(label="Recents", show_label=False, choices=[], interactive=True, elem_classes="history-list")
+            gr.Markdown("### Recents")
+            history = gr.Radio(label="Recents", choices=[], interactive=True)
             with gr.Row():
-                fork_button = gr.Button("Fork", elem_classes="side-button")
-                delete_button = gr.Button("Delete", elem_classes="side-button")
-            gr.Markdown("Persistent HF storage", elem_classes="sidebar-footer")
+                fork_button = gr.Button("Fork")
+                delete_button = gr.Button("Delete")
+            gr.Markdown("Persistent HF storage")
 
-        with gr.Column(elem_classes="workspace"):
-            with gr.Row(elem_classes="topbar"):
+        with gr.Column(scale=3):
+            with gr.Row():
                 toggle_button = gr.Button("☰", scale=0)
                 draft_title = gr.Textbox(
                     value="Untitled draft",
                     label="Draft title",
                     show_label=False,
-                    elem_classes="draft-title",
                     scale=8,
                 )
                 save_button = gr.Button("Save", variant="primary", scale=0)
                 copy_button = gr.Button("Copy", scale=0)
 
-            active_tab = gr.Radio(label="Tabs", show_label=False, choices=[], interactive=True, elem_classes="tab-strip")
-            with gr.Row(elem_classes="tab-actions"):
+            active_tab = gr.Dropdown(label="Section", choices=[], interactive=True)
+            with gr.Row():
                 tab_title = gr.Textbox(
                     label="Tab name",
                     show_label=False,
                     placeholder="Tab name",
                     scale=4,
-                    elem_classes="tab-name",
                 )
                 rename_tab_button = gr.Button("Rename", scale=0)
                 add_tab_button = gr.Button("+ Tab", scale=0)
                 delete_tab_button = gr.Button("Delete", scale=0)
 
-            editor = gr.Textbox(label="Text", lines=18, max_lines=40, elem_classes="editor")
+            editor = gr.Textbox(label="Text", lines=22, max_lines=60)
 
-            with gr.Column(elem_classes="combined-panel"):
+            with gr.Accordion("Combined text", open=False):
                 combined = gr.Textbox(
                     label="Combined text",
                     lines=10,
                     max_lines=24,
                     interactive=False,
                 )
-            status = gr.Markdown(elem_classes="status-line")
+            status = gr.Markdown()
 
     demo.load(
         load_app,
