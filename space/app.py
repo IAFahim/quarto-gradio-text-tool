@@ -29,15 +29,15 @@ LAYOUT_CSS = """
 .editor-panel-full {
     max-width: 1060px !important;
 }
-.sketch-top,
-.sketch-name,
-.sketch-bottom {
+.layout-top,
+.layout-name,
+.layout-bottom {
     align-items: center !important;
     flex-wrap: nowrap !important;
 }
-.sketch-top .form,
-.sketch-name .form,
-.sketch-bottom .form {
+.layout-top .form,
+.layout-name .form,
+.layout-bottom .form {
     min-width: 0 !important;
 }
 .main-editor textarea {
@@ -487,13 +487,7 @@ def toggle_sidebar(open_state: bool) -> tuple[Any, ...]:
     return next_state, gr.update(visible=next_state), gr.update(elem_classes=editor_classes), "☰"
 
 
-sketch_theme = gr.Theme.from_hub("gstaff/sketch")
-sketch_theme.set(
-    input_background_fill_focus="white",
-    input_background_fill_focus_dark="*neutral_800",
-)
-
-with gr.Blocks(title="Text Tool", fill_height=True, theme=sketch_theme, css=LAYOUT_CSS) as demo:
+with gr.Blocks(title="Text Tool", fill_height=True, css=LAYOUT_CSS) as demo:
     drafts_state = gr.State([])
     sections_state = gr.State(blank_sections())
     active_index_state = gr.State(0)
@@ -521,7 +515,7 @@ with gr.Blocks(title="Text Tool", fill_height=True, theme=sketch_theme, css=LAYO
             gr.Markdown("Persistent HF storage")
 
         with gr.Column(scale=2, min_width=520, elem_classes="editor-panel") as editor_panel:
-            with gr.Row(elem_classes="sketch-top"):
+            with gr.Row(elem_classes="layout-top"):
                 toggle_button = gr.Button("☰", scale=0)
                 draft_title = gr.Textbox(
                     value="Untitled draft",
@@ -531,7 +525,7 @@ with gr.Blocks(title="Text Tool", fill_height=True, theme=sketch_theme, css=LAYO
                 )
                 copy_button = gr.Button("Copy", scale=0)
 
-            with gr.Row(elem_classes="sketch-name"):
+            with gr.Row(elem_classes="layout-name"):
                 tab_title = gr.Textbox(
                     label="Tab name",
                     show_label=False,
@@ -542,7 +536,7 @@ with gr.Blocks(title="Text Tool", fill_height=True, theme=sketch_theme, css=LAYO
 
             editor = gr.Textbox(label="Text", lines=24, max_lines=80, elem_classes="main-editor")
 
-            with gr.Row(elem_classes="sketch-bottom"):
+            with gr.Row(elem_classes="layout-bottom"):
                 active_tab = gr.Dropdown(label="Section", show_label=False, choices=[], interactive=True, scale=4)
                 delete_tab_button = gr.Button("Delete section", scale=0)
             rename_tab_button = gr.Button("Rename", visible=False)
