@@ -22,19 +22,17 @@ footer {display: none !important;}
     max-width: none !important;
     min-height: 100vh !important;
     padding: 0 !important;
-    background: #f6f7f9 !important;
+    background: #f7f7f8 !important;
 }
 .app-frame {
     min-height: 100vh;
-    display: grid;
-    grid-template-columns: 292px minmax(0, 1fr);
-    background: #f6f7f9;
-}
-.app-frame.sidebar-closed {
-    grid-template-columns: 0 minmax(0, 1fr);
+    gap: 0 !important;
+    align-items: stretch !important;
+    background: #f7f7f8;
 }
 .sidebar {
     min-height: 100vh;
+    max-width: 292px;
     padding: 14px 10px;
     border-right: 1px solid #e7e7e8;
     background: #ffffff;
@@ -44,22 +42,25 @@ footer {display: none !important;}
     min-width: 0;
     padding: 16px 22px 22px;
 }
-.brand h1 {
-    margin: 0 0 10px;
-    padding: 0 2px;
-    font-size: 18px;
-    line-height: 1.2;
+.profile-input {
+    margin-bottom: 10px !important;
 }
-.profile-input label {
-    display: none !important;
+.profile-input input {
+    border: 0 !important;
+    background: transparent !important;
+    padding: 4px 2px !important;
+    font-size: 18px !important;
+    font-weight: 700 !important;
+    box-shadow: none !important;
 }
-.profile-input input,
+.search-input {
+    margin: 8px 0 16px !important;
+}
 .search-input input {
     border: 0 !important;
-    background: #f4f4f5 !important;
-}
-.nav-button {
-    width: 100%;
+    background: transparent !important;
+    box-shadow: none !important;
+    padding: 8px 4px !important;
 }
 .nav-button button,
 .side-button button {
@@ -68,13 +69,15 @@ footer {display: none !important;}
     background: #ffffff !important;
     box-shadow: none !important;
     font-weight: 500 !important;
+    min-height: 36px !important;
+    padding: 7px 10px !important;
 }
 .nav-button button:hover,
 .side-button button:hover {
     background: #f4f4f5 !important;
 }
 .side-section h3 {
-    margin: 18px 0 8px !important;
+    margin: 18px 0 6px !important;
     padding: 0 2px;
     font-size: 13px !important;
     line-height: 1.2 !important;
@@ -88,12 +91,15 @@ footer {display: none !important;}
 }
 .history-list .wrap {
     gap: 2px !important;
+    border: 0 !important;
+    background: transparent !important;
 }
 .history-list .wrap label {
     min-height: 36px;
-    padding: 7px 10px !important;
+    padding: 7px 9px !important;
     border-radius: 8px !important;
     background: transparent !important;
+    font-size: 13px !important;
 }
 .history-list .wrap label:hover {
     background: #f4f4f5 !important;
@@ -112,47 +118,68 @@ footer {display: none !important;}
     font-size: 12px;
 }
 .topbar {
-    align-items: center;
-    gap: 10px;
-    margin-bottom: 12px;
+    align-items: center !important;
+    gap: 8px !important;
+    margin-bottom: 14px;
+    flex-wrap: nowrap !important;
 }
 .topbar button {
-    min-width: 42px !important;
+    min-width: 40px !important;
+    width: auto !important;
+    padding: 0 12px !important;
 }
 .draft-title input {
-    font-size: 20px !important;
+    height: 42px !important;
+    border: 0 !important;
+    background: #ffffff !important;
+    box-shadow: none !important;
+    font-size: 18px !important;
     font-weight: 650 !important;
 }
-.tab-strip label {
-    display: none !important;
+.tab-strip {
+    margin-bottom: 10px !important;
 }
 .tab-strip .wrap {
     display: flex !important;
     flex-wrap: wrap;
-    gap: 8px;
+    gap: 6px;
     border: 0 !important;
     background: transparent !important;
+    padding: 0 !important;
 }
 .tab-strip .wrap label {
-    border: 1px solid #d9dce1 !important;
+    border: 0 !important;
     border-radius: 999px !important;
-    padding: 7px 12px !important;
+    padding: 6px 10px !important;
     background: #ffffff !important;
+    font-size: 13px !important;
 }
 .tab-strip .wrap label:hover,
 .tab-strip label:has(input:checked) {
-    border-color: #1f7a4d !important;
     background: #eef8f2 !important;
 }
 .tab-actions {
-    gap: 8px;
-    margin-bottom: 10px;
+    align-items: center !important;
+    gap: 8px !important;
+    margin-bottom: 12px;
+    flex-wrap: nowrap !important;
 }
 .tab-actions button {
     min-height: 36px !important;
+    width: auto !important;
+    padding: 0 12px !important;
+}
+.tab-name input {
+    height: 38px !important;
+    border: 0 !important;
+    background: #ffffff !important;
+    box-shadow: none !important;
 }
 .editor textarea {
-    min-height: 48vh !important;
+    min-height: 55vh !important;
+    border: 0 !important;
+    background: #ffffff !important;
+    box-shadow: none !important;
     font-size: 15px !important;
     line-height: 1.55 !important;
 }
@@ -160,7 +187,10 @@ footer {display: none !important;}
     margin-top: 12px;
 }
 .combined-panel textarea {
-    min-height: 210px !important;
+    min-height: 180px !important;
+    border: 0 !important;
+    background: #ffffff !important;
+    box-shadow: none !important;
     font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace !important;
     font-size: 13px !important;
 }
@@ -171,17 +201,15 @@ footer {display: none !important;}
 }
 .gr-button {
     border-radius: 8px !important;
-    min-height: 40px !important;
+    min-height: 38px !important;
 }
 .primary {
     background: #1f7a4d !important;
     border-color: #1f7a4d !important;
 }
 @media (max-width: 840px) {
-    .app-frame {
-        grid-template-columns: 1fr;
-    }
     .sidebar {
+        max-width: none;
         min-height: auto;
         border-right: 0;
         border-bottom: 1px solid #e7e7e8;
@@ -361,10 +389,6 @@ def find_draft_by_label(drafts: list[dict[str, Any]], label: str | None) -> dict
     return None
 
 
-def current_header(user_name: str) -> str:
-    return f"# {display_user(user_name)}"
-
-
 def load_app() -> tuple[Any, ...]:
     drafts = load_history()
     choices = history_choices(drafts)
@@ -383,17 +407,12 @@ def load_app() -> tuple[Any, ...]:
         draft.get("title", "Untitled draft") if draft else "Untitled draft",
         combine_sections(sections),
         f"Loaded {len(drafts)} recent draft(s).",
-        current_header(DEFAULT_USER_NAME),
     )
 
 
 def search_history(drafts: list[dict[str, Any]], query: str) -> Any:
     choices = history_choices(drafts or [], query)
     return gr.update(choices=choices, value=choices[0] if choices else None)
-
-
-def update_user_header(user_name: str) -> str:
-    return current_header(user_name)
 
 
 def select_history(drafts: list[dict[str, Any]], selected_label: str | None) -> tuple[Any, ...]:
@@ -591,7 +610,7 @@ def delete_tab(sections: list[dict[str, str]], active_index: int, editor_text: s
 
 def toggle_sidebar(open_state: bool) -> tuple[Any, ...]:
     next_state = not bool(open_state)
-    return next_state, gr.update(visible=next_state), "Hide sidebar" if next_state else "Show sidebar"
+    return next_state, gr.update(visible=next_state), "☰"
 
 
 theme = gr.themes.Default(
@@ -614,17 +633,22 @@ with gr.Blocks(title="Text Tool", fill_height=True, theme=theme, css=APP_CSS) as
 
     with gr.Row(elem_classes="app-frame"):
         with gr.Column(elem_classes="sidebar", min_width=280) as sidebar:
-            user_header = gr.Markdown(current_header(DEFAULT_USER_NAME), elem_classes="brand")
             user_name = gr.Textbox(
                 value=DEFAULT_USER_NAME,
                 placeholder="Global",
                 label="Workspace",
+                show_label=False,
                 elem_classes="profile-input",
             )
             new_button = gr.Button("+ New draft", elem_classes="nav-button")
-            search = gr.Textbox(placeholder="Search drafts", label="Search", elem_classes="search-input")
+            search = gr.Textbox(
+                placeholder="Search drafts",
+                label="Search",
+                show_label=False,
+                elem_classes="search-input",
+            )
             gr.Markdown("### Recents", elem_classes="side-section")
-            history = gr.Radio(label="", choices=[], interactive=True, elem_classes="history-list")
+            history = gr.Radio(label="Recents", show_label=False, choices=[], interactive=True, elem_classes="history-list")
             with gr.Row():
                 fork_button = gr.Button("Fork", elem_classes="side-button")
                 delete_button = gr.Button("Delete", elem_classes="side-button")
@@ -632,7 +656,7 @@ with gr.Blocks(title="Text Tool", fill_height=True, theme=theme, css=APP_CSS) as
 
         with gr.Column(elem_classes="workspace"):
             with gr.Row(elem_classes="topbar"):
-                toggle_button = gr.Button("Hide sidebar", scale=0)
+                toggle_button = gr.Button("☰", scale=0)
                 draft_title = gr.Textbox(
                     value="Untitled draft",
                     label="Draft title",
@@ -643,12 +667,18 @@ with gr.Blocks(title="Text Tool", fill_height=True, theme=theme, css=APP_CSS) as
                 save_button = gr.Button("Save", variant="primary", scale=0)
                 copy_button = gr.Button("Copy", scale=0)
 
-            active_tab = gr.Radio(label="Tabs", choices=[], interactive=True, elem_classes="tab-strip")
+            active_tab = gr.Radio(label="Tabs", show_label=False, choices=[], interactive=True, elem_classes="tab-strip")
             with gr.Row(elem_classes="tab-actions"):
-                tab_title = gr.Textbox(label="Tab name", scale=4)
+                tab_title = gr.Textbox(
+                    label="Tab name",
+                    show_label=False,
+                    placeholder="Tab name",
+                    scale=4,
+                    elem_classes="tab-name",
+                )
                 rename_tab_button = gr.Button("Rename", scale=0)
                 add_tab_button = gr.Button("+ Tab", scale=0)
-                delete_tab_button = gr.Button("Delete tab", scale=0)
+                delete_tab_button = gr.Button("Delete", scale=0)
 
             editor = gr.Textbox(label="Text", lines=18, max_lines=40, elem_classes="editor")
 
@@ -674,11 +704,9 @@ with gr.Blocks(title="Text Tool", fill_height=True, theme=theme, css=APP_CSS) as
             draft_title,
             combined,
             status,
-            user_header,
         ],
     )
 
-    user_name.change(update_user_header, inputs=user_name, outputs=user_header)
     search.change(search_history, inputs=[drafts_state, search], outputs=history)
 
     toggle_button.click(
