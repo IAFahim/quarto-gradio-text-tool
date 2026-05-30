@@ -426,12 +426,13 @@ def select_tab(
         sections[next_index]["text"],
         sections[next_index]["title"],
         combine_sections(sections),
+        "",  # Clear status
     )
 
 
 def update_active_text(sections: list[dict[str, str]], active_index: int, editor_text: str) -> tuple[Any, ...]:
     sections = commit_editor_text(sections, active_index, editor_text)
-    return sections, combine_sections(sections)
+    return sections, combine_sections(sections), ""  # Clear status
 
 
 def rename_active_tab(
@@ -447,6 +448,7 @@ def rename_active_tab(
         sections,
         gr.update(choices=tab_choices(sections), value=active_label(sections, active_index)),
         combine_sections(sections),
+        "",  # Clear status
     )
 
 
@@ -571,7 +573,7 @@ with gr.Blocks(title="Text Tool", fill_height=True, css=LAYOUT_CSS) as demo:
                     show_label=False,
                     scale=6,
                 )
-                copy_button = gr.Button("Copy", scale=0)
+                copy_button = gr.Button("Copy", scale=0, variant="primary")
 
             with gr.Row(elem_classes="layout-name"):
                 tab_title = gr.Textbox(
@@ -688,30 +690,30 @@ with gr.Blocks(title="Text Tool", fill_height=True, css=LAYOUT_CSS) as demo:
     active_tab.change(
         select_tab,
         inputs=[sections_state, active_index_state, active_tab, editor],
-        outputs=[sections_state, active_index_state, editor, tab_title, combined],
+        outputs=[sections_state, active_index_state, editor, tab_title, combined, status],
     )
 
     editor.blur(
         update_active_text,
         inputs=[sections_state, active_index_state, editor],
-        outputs=[sections_state, combined],
+        outputs=[sections_state, combined, status],
     )
 
     tab_title.blur(
         rename_active_tab,
         inputs=[sections_state, active_index_state, editor, tab_title],
-        outputs=[sections_state, active_tab, combined],
+        outputs=[sections_state, active_tab, combined, status],
     )
     tab_title.submit(
         rename_active_tab,
         inputs=[sections_state, active_index_state, editor, tab_title],
-        outputs=[sections_state, active_tab, combined],
+        outputs=[sections_state, active_tab, combined, status],
     )
 
     rename_tab_button.click(
         rename_active_tab,
         inputs=[sections_state, active_index_state, editor, tab_title],
-        outputs=[sections_state, active_tab, combined],
+        outputs=[sections_state, active_tab, combined, status],
     )
 
     add_tab_button.click(
