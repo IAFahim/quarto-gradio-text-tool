@@ -24,7 +24,10 @@ LAYOUT_CSS = """
     max-width: 300px !important;
 }
 .editor-panel {
-    max-width: 620px !important;
+    max-width: 760px !important;
+}
+.editor-panel-full {
+    max-width: 1060px !important;
 }
 .sketch-top,
 .sketch-name,
@@ -480,7 +483,8 @@ def delete_tab(sections: list[dict[str, str]], active_index: int, editor_text: s
 
 def toggle_sidebar(open_state: bool) -> tuple[Any, ...]:
     next_state = not bool(open_state)
-    return next_state, gr.update(visible=next_state), "☰"
+    editor_classes = ["editor-panel"] if next_state else ["editor-panel-full"]
+    return next_state, gr.update(visible=next_state), gr.update(elem_classes=editor_classes), "☰"
 
 
 with gr.Blocks(title="Text Tool", fill_height=True, theme="gstaff/sketch", css=LAYOUT_CSS) as demo:
@@ -510,7 +514,7 @@ with gr.Blocks(title="Text Tool", fill_height=True, theme="gstaff/sketch", css=L
                 delete_button = gr.Button("Delete")
             gr.Markdown("Persistent HF storage")
 
-        with gr.Column(scale=2, min_width=520, elem_classes="editor-panel"):
+        with gr.Column(scale=2, min_width=520, elem_classes="editor-panel") as editor_panel:
             with gr.Row(elem_classes="sketch-top"):
                 toggle_button = gr.Button("☰", scale=0)
                 draft_title = gr.Textbox(
@@ -569,7 +573,7 @@ with gr.Blocks(title="Text Tool", fill_height=True, theme="gstaff/sketch", css=L
     toggle_button.click(
         toggle_sidebar,
         inputs=sidebar_open_state,
-        outputs=[sidebar_open_state, sidebar, toggle_button],
+        outputs=[sidebar_open_state, sidebar, editor_panel, toggle_button],
     )
 
     history.change(
