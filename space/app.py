@@ -288,6 +288,55 @@ def save_current(
     )
 
 
+def copy_and_save_current(
+    drafts: list[dict[str, Any]],
+    selected_label: str | None,
+    sections: list[dict[str, str]],
+    active_index: int,
+    editor_text: str,
+    draft_title: str,
+    user_name: str,
+) -> tuple[Any, ...]:
+    drafts = list(drafts or [])
+    sections = commit_editor_text(sections, active_index, editor_text)
+    timestamp = now_iso()
+    existing = find_draft_by_label(drafts, selected_label)
+    title = (draft_title or "").strip() or title_from_sections(sections)
+
+    if existing:
+        existing.update(
+            {
+                "owner": display_user(user_name),
+                "title": title,
+                "updated_at": timestamp,
+                "sections": sections,
+            }
+        )
+        saved = existing
+    else:
+        saved = {
+            "id": str(uuid.uuid4()),
+            "owner": display_user(user_name),
+            "title": title,
+            "created_at": timestamp,
+            "updated_at": timestamp,
+            "sections": sections,
+        }
+        drafts.append(saved)
+
+    save_history(drafts)
+    choices = history_choices(drafts)
+    combined = combine_sections(sections)
+    return (
+        drafts,
+        gr.update(choices=choices, value=draft_label(saved)),
+        sections,
+        combined,
+        "Saved and copied.",
+        combined,
+    )
+
+
 def fork_current(
     drafts: list[dict[str, Any]],
     sections: list[dict[str, str]],
@@ -438,27 +487,30 @@ with gr.Blocks(title="Text Tool", fill_height=True, theme="gstaff/sketch") as de
         with gr.Column(scale=3):
             with gr.Row():
                 toggle_button = gr.Button("☰", scale=0)
-                save_button = gr.Button("Save", variant="primary", scale=0)
+                draft_title = gr.Textbox(
+                    value="Untitled draft",
+                    label="Draft title",
+                    show_label=False,
+                    scale=6,
+                )
                 copy_button = gr.Button("Copy", scale=0)
-
-            draft_title = gr.Textbox(
-                value="Untitled draft",
-                label="Draft title",
-                show_label=False,
-            )
-
-            active_tab = gr.Dropdown(label="Section", choices=[], interactive=True)
-            editor = gr.Textbox(label="Text", lines=24, max_lines=80)
 
             with gr.Row():
                 tab_title = gr.Textbox(
                     label="Tab name",
-                    placeholder="Tab name",
+                    show_label=False,
+                    placeholder="Name/Rename",
                     scale=4,
                 )
                 add_tab_button = gr.Button("+ Tab", scale=0)
-                rename_tab_button = gr.Button("Rename", scale=0)
+
+            editor = gr.Textbox(label="Text", lines=24, max_lines=80)
+
+            with gr.Row():
+                active_tab = gr.Dropdown(label="Section", show_label=False, choices=[], interactive=True, scale=4)
                 delete_tab_button = gr.Button("Delete section", scale=0)
+            rename_tab_button = gr.Button("Rename", visible=False)
+            save_button = gr.Button("Save", visible=False)
 
             with gr.Accordion("Combined text", open=False):
                 combined = gr.Textbox(
@@ -467,6 +519,7 @@ with gr.Blocks(title="Text Tool", fill_height=True, theme="gstaff/sketch") as de
                     max_lines=24,
                     interactive=False,
                 )
+            copy_payload = gr.Textbox(visible=False)
             status = gr.Markdown()
 
     demo.load(
@@ -564,6 +617,12 @@ with gr.Blocks(title="Text Tool", fill_height=True, theme="gstaff/sketch") as de
         outputs=[sections_state, combined],
     )
 
+    tab_title.change(
+        rename_active_tab,
+        inputs=[sections_state, active_index_state, editor, tab_title],
+        outputs=[sections_state, active_tab, combined],
+    )
+
     rename_tab_button.click(
         rename_active_tab,
         inputs=[sections_state, active_index_state, editor, tab_title],
@@ -583,10 +642,14 @@ with gr.Blocks(title="Text Tool", fill_height=True, theme="gstaff/sketch") as de
     )
 
     copy_button.click(
-        lambda text: "Copied to clipboard.",
-        inputs=combined,
+        copy_and_save_current,
+        inputs=[drafts_state, history, sections_state, active_index_state, editor, draft_title, user_name],
+        outputs=[drafts_state, history, sections_state, combined, status, copy_payload],
+    ).then(
+        lambda text: "Saved and copied.",
+        inputs=copy_payload,
         outputs=status,
-        js="(text) => { navigator.clipboard.writeText(text || ''); return 'Copied to clipboard.'; }",
+        js="(text) => { navigator.clipboard.writeText(text || ''); return 'Saved and copied.'; }",
     )
 
 
