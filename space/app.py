@@ -37,7 +37,7 @@ LAYOUT_CSS = """
 .sketch-bottom .form {
     min-width: 0 !important;
 }
-.editor-panel textarea {
+.main-editor textarea {
     min-height: 520px !important;
 }
 """
@@ -530,7 +530,7 @@ with gr.Blocks(title="Text Tool", fill_height=True, theme="gstaff/sketch", css=L
                 )
                 add_tab_button = gr.Button("+ Tab", scale=0)
 
-            editor = gr.Textbox(label="Text", lines=24, max_lines=80)
+            editor = gr.Textbox(label="Text", lines=24, max_lines=80, elem_classes="main-editor")
 
             with gr.Row(elem_classes="sketch-bottom"):
                 active_tab = gr.Dropdown(label="Section", show_label=False, choices=[], interactive=True, scale=4)
