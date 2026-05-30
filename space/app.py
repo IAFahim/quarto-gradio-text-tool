@@ -438,28 +438,27 @@ with gr.Blocks(title="Text Tool", fill_height=True, theme="gstaff/sketch") as de
         with gr.Column(scale=3):
             with gr.Row():
                 toggle_button = gr.Button("☰", scale=0)
-                draft_title = gr.Textbox(
-                    value="Untitled draft",
-                    label="Draft title",
-                    show_label=False,
-                    scale=8,
-                )
                 save_button = gr.Button("Save", variant="primary", scale=0)
                 copy_button = gr.Button("Copy", scale=0)
 
+            draft_title = gr.Textbox(
+                value="Untitled draft",
+                label="Draft title",
+                show_label=False,
+            )
+
             active_tab = gr.Dropdown(label="Section", choices=[], interactive=True)
+            editor = gr.Textbox(label="Text", lines=24, max_lines=80)
+
             with gr.Row():
                 tab_title = gr.Textbox(
                     label="Tab name",
-                    show_label=False,
                     placeholder="Tab name",
                     scale=4,
                 )
-                rename_tab_button = gr.Button("Rename", scale=0)
                 add_tab_button = gr.Button("+ Tab", scale=0)
-                delete_tab_button = gr.Button("Delete", scale=0)
-
-            editor = gr.Textbox(label="Text", lines=22, max_lines=60)
+                rename_tab_button = gr.Button("Rename", scale=0)
+                delete_tab_button = gr.Button("Delete section", scale=0)
 
             with gr.Accordion("Combined text", open=False):
                 combined = gr.Textbox(
