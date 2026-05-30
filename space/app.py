@@ -63,6 +63,7 @@ LAYOUT_CSS = """
     font-family: monospace !important;
     background-color: #121212 !important;
     color: #00ff66 !important;
+    pointer-events: auto !important;
 }
 """
 
