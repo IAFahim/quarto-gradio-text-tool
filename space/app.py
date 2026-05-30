@@ -4,7 +4,7 @@ import json
 import os
 import tempfile
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from pathlib import Path
 from typing import Any
 
@@ -45,6 +45,12 @@ LAYOUT_CSS = """
 }
 .code-snippet textarea {
     font-family: monospace !important;
+}
+.arrow-btn {
+    min-width: 32px !important;
+    max-width: 48px !important;
+    padding-left: 4px !important;
+    padding-right: 4px !important;
 }
 """
 
@@ -156,20 +162,26 @@ def title_from_sections(sections: list[dict[str, str]]) -> str:
     return "Untitled draft"
 
 
-def format_timestamp(iso_str: str) -> str:
+def format_timestamp(iso_str: str, offset_minutes: str | None = None) -> str:
     if not iso_str:
         return ""
     try:
         dt = datetime.fromisoformat(iso_str)
+        if offset_minutes is not None:
+            try:
+                offset = int(offset_minutes)
+                dt = dt.astimezone(timezone(timedelta(minutes=-offset)))
+            except Exception:
+                pass
         return dt.strftime("%b %d, %Y · %H:%M")
     except Exception:
         return iso_str
 
 
-def draft_label(draft: dict[str, Any]) -> str:
+def draft_label(draft: dict[str, Any], client_tz: str | None = None) -> str:
     title = draft.get("title") or "Untitled draft"
     updated = draft.get("updated_at") or ""
-    return f"{title} | {format_timestamp(updated)}"
+    return f"{title} | {format_timestamp(updated, client_tz)}"
 
 
 def load_history() -> list[dict[str, Any]]:
@@ -212,7 +224,7 @@ def save_history(drafts: list[dict[str, Any]]) -> None:
     os.replace(temp_name, HISTORY_PATH)
 
 
-def history_choices(drafts: list[dict[str, Any]], query: str = "") -> list[str]:
+def history_choices(drafts: list[dict[str, Any]], query: str = "", client_tz: str | None = None) -> list[str]:
     clean_query = query.strip().lower()
     filtered = []
     for draft in drafts:
@@ -225,21 +237,21 @@ def history_choices(drafts: list[dict[str, Any]], query: str = "") -> list[str]:
         ).lower()
         if not clean_query or clean_query in haystack:
             filtered.append(draft)
-    return [draft_label(draft) for draft in sorted(filtered, key=lambda item: item["updated_at"], reverse=True)]
+    return [draft_label(draft, client_tz) for draft in sorted(filtered, key=lambda item: item["updated_at"], reverse=True)]
 
 
-def find_draft_by_label(drafts: list[dict[str, Any]], label: str | None) -> dict[str, Any] | None:
+def find_draft_by_label(drafts: list[dict[str, Any]], label: str | None, client_tz: str | None = None) -> dict[str, Any] | None:
     for draft in drafts or []:
-        if draft_label(draft) == label:
+        if draft_label(draft, client_tz) == label:
             return draft
     return None
 
 
-def load_app() -> tuple[Any, ...]:
+def load_app(client_tz: str | None = None) -> tuple[Any, ...]:
     drafts = load_history()
-    choices = history_choices(drafts)
+    choices = history_choices(drafts, client_tz=client_tz)
     selected = choices[0] if choices else None
-    draft = find_draft_by_label(drafts, selected) if selected else None
+    draft = find_draft_by_label(drafts, selected, client_tz=client_tz) if selected else None
     sections = draft["sections"] if draft else blank_sections()
     active_index = 0
     return (
@@ -257,13 +269,13 @@ def load_app() -> tuple[Any, ...]:
     )
 
 
-def search_history(drafts: list[dict[str, Any]], query: str) -> Any:
-    choices = history_choices(drafts or [], query)
+def search_history(drafts: list[dict[str, Any]], query: str, client_tz: str | None = None) -> Any:
+    choices = history_choices(drafts or [], query, client_tz=client_tz)
     return gr.update(choices=choices, value=choices[0] if choices else None)
 
 
-def select_history(drafts: list[dict[str, Any]], selected_label: str | None) -> tuple[Any, ...]:
-    draft = find_draft_by_label(drafts or [], selected_label)
+def select_history(drafts: list[dict[str, Any]], selected_label: str | None, client_tz: str | None = None) -> tuple[Any, ...]:
+    draft = find_draft_by_label(drafts or [], selected_label, client_tz=client_tz)
     sections = draft["sections"] if draft else blank_sections()
     active_index = 0
     return (
@@ -304,11 +316,12 @@ def save_current(
     code_text: str,
     draft_title: str,
     user_name: str,
+    client_tz: str | None = None,
 ) -> tuple[Any, ...]:
     drafts = list(drafts or [])
     sections = commit_editor_text(sections, active_index, editor_text, code_text)
     timestamp = now_iso()
-    existing = find_draft_by_label(drafts, selected_label)
+    existing = find_draft_by_label(drafts, selected_label, client_tz=client_tz)
     title = (draft_title or "").strip() or title_from_sections(sections)
 
     if existing:
@@ -333,10 +346,10 @@ def save_current(
         drafts.append(saved)
 
     save_history(drafts)
-    choices = history_choices(drafts)
+    choices = history_choices(drafts, client_tz=client_tz)
     return (
         drafts,
-        gr.update(choices=choices, value=draft_label(saved)),
+        gr.update(choices=choices, value=draft_label(saved, client_tz)),
         sections,
         combine_sections(sections),
         "Saved.",
@@ -352,11 +365,12 @@ def copy_and_save_current(
     code_text: str,
     draft_title: str,
     user_name: str,
+    client_tz: str | None = None,
 ) -> tuple[Any, ...]:
     drafts = list(drafts or [])
     sections = commit_editor_text(sections, active_index, editor_text, code_text)
     timestamp = now_iso()
-    existing = find_draft_by_label(drafts, selected_label)
+    existing = find_draft_by_label(drafts, selected_label, client_tz=client_tz)
     title = (draft_title or "").strip() or title_from_sections(sections)
 
     if existing:
@@ -381,11 +395,11 @@ def copy_and_save_current(
         drafts.append(saved)
 
     save_history(drafts)
-    choices = history_choices(drafts)
+    choices = history_choices(drafts, client_tz=client_tz)
     combined = combine_sections(sections)
     return (
         drafts,
-        gr.update(choices=choices, value=draft_label(saved)),
+        gr.update(choices=choices, value=draft_label(saved, client_tz)),
         sections,
         combined,
         "Saved and copied.",
@@ -401,6 +415,7 @@ def fork_current(
     code_text: str,
     draft_title: str,
     user_name: str,
+    client_tz: str | None = None,
 ) -> tuple[Any, ...]:
     drafts = list(drafts or [])
     sections = commit_editor_text(sections, active_index, editor_text, code_text)
@@ -415,16 +430,16 @@ def fork_current(
     }
     drafts.append(forked)
     save_history(drafts)
-    choices = history_choices(drafts)
-    return drafts, gr.update(choices=choices, value=draft_label(forked)), forked["title"], "Forked."
+    choices = history_choices(drafts, client_tz=client_tz)
+    return drafts, gr.update(choices=choices, value=draft_label(forked, client_tz)), forked["title"], "Forked."
 
 
-def delete_current(drafts: list[dict[str, Any]], selected_label: str | None) -> tuple[Any, ...]:
-    drafts = [draft for draft in (drafts or []) if draft_label(draft) != selected_label]
+def delete_current(drafts: list[dict[str, Any]], selected_label: str | None, client_tz: str | None = None) -> tuple[Any, ...]:
+    drafts = [draft for draft in (drafts or []) if draft_label(draft, client_tz) != selected_label]
     save_history(drafts)
-    choices = history_choices(drafts)
+    choices = history_choices(drafts, client_tz=client_tz)
     selected = choices[0] if choices else None
-    draft = find_draft_by_label(drafts, selected) if selected else None
+    draft = find_draft_by_label(drafts, selected, client_tz=client_tz) if selected else None
     sections = draft["sections"] if draft else blank_sections()
     return (
         drafts,
@@ -597,6 +612,7 @@ def toggle_sidebar(open_state: bool) -> tuple[Any, ...]:
 
 
 with gr.Blocks(title="Text Tool", fill_height=True, css=LAYOUT_CSS) as demo:
+    client_timezone = gr.Textbox(visible=False, value="0")
     drafts_state = gr.State([])
     sections_state = gr.State(blank_sections())
     active_index_state = gr.State(0)
@@ -655,9 +671,9 @@ with gr.Blocks(title="Text Tool", fill_height=True, css=LAYOUT_CSS) as demo:
 
             with gr.Row(elem_classes="layout-bottom"):
                 active_tab = gr.Dropdown(label="Section", show_label=False, choices=[], interactive=True, scale=4)
-                move_up_button = gr.Button("◀", scale=0)
-                move_down_button = gr.Button("▶", scale=0)
-                delete_tab_button = gr.Button("Delete section", scale=0)
+                move_up_button = gr.Button("◀", scale=0, elem_classes=["arrow-btn"])
+                move_down_button = gr.Button("▶", scale=0, elem_classes=["arrow-btn"])
+                delete_tab_button = gr.Button("🗑️ Delete section", scale=0, variant="stop")
             rename_tab_button = gr.Button("Rename", visible=False)
             save_button = gr.Button("Save", visible=False)
 
@@ -672,7 +688,15 @@ with gr.Blocks(title="Text Tool", fill_height=True, css=LAYOUT_CSS) as demo:
             status = gr.Markdown()
 
     demo.load(
+        fn=None,
+        inputs=None,
+        outputs=client_timezone,
+        js="() => { return String(new Date().getTimezoneOffset()); }"
+    )
+
+    client_timezone.change(
         load_app,
+        inputs=[client_timezone],
         outputs=[
             drafts_state,
             history,
@@ -688,7 +712,7 @@ with gr.Blocks(title="Text Tool", fill_height=True, css=LAYOUT_CSS) as demo:
         ],
     )
 
-    search.change(search_history, inputs=[drafts_state, search], outputs=history)
+    search.change(search_history, inputs=[drafts_state, search, client_timezone], outputs=history)
 
     toggle_button.click(
         toggle_sidebar,
@@ -698,7 +722,7 @@ with gr.Blocks(title="Text Tool", fill_height=True, css=LAYOUT_CSS) as demo:
 
     history.change(
         select_history,
-        inputs=[drafts_state, history],
+        inputs=[drafts_state, history, client_timezone],
         outputs=[
             sections_state,
             active_index_state,
@@ -730,19 +754,19 @@ with gr.Blocks(title="Text Tool", fill_height=True, css=LAYOUT_CSS) as demo:
 
     save_button.click(
         save_current,
-        inputs=[drafts_state, history, sections_state, active_index_state, editor, code_snippet, draft_title, user_name],
+        inputs=[drafts_state, history, sections_state, active_index_state, editor, code_snippet, draft_title, user_name, client_timezone],
         outputs=[drafts_state, history, sections_state, combined, status],
     )
 
     fork_button.click(
         fork_current,
-        inputs=[drafts_state, sections_state, active_index_state, editor, code_snippet, draft_title, user_name],
+        inputs=[drafts_state, sections_state, active_index_state, editor, code_snippet, draft_title, user_name, client_timezone],
         outputs=[drafts_state, history, draft_title, status],
     )
 
     delete_button.click(
         delete_current,
-        inputs=[drafts_state, history],
+        inputs=[drafts_state, history, client_timezone],
         outputs=[
             drafts_state,
             history,
@@ -837,7 +861,7 @@ with gr.Blocks(title="Text Tool", fill_height=True, css=LAYOUT_CSS) as demo:
 
     copy_button.click(
         copy_and_save_current,
-        inputs=[drafts_state, history, sections_state, active_index_state, editor, code_snippet, draft_title, user_name],
+        inputs=[drafts_state, history, sections_state, active_index_state, editor, code_snippet, draft_title, user_name, client_timezone],
         outputs=[drafts_state, history, sections_state, combined, status, copy_payload],
     ).then(
         lambda text: "Saved and copied.",
