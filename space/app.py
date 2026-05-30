@@ -481,6 +481,54 @@ def delete_tab(sections: list[dict[str, str]], active_index: int, editor_text: s
     )
 
 
+def move_tab_up(
+    sections: list[dict[str, str]],
+    active_index: int,
+    editor_text: str,
+) -> tuple[Any, ...]:
+    sections = commit_editor_text(sections, active_index, editor_text)
+    if active_index > 0:
+        sections[active_index], sections[active_index - 1] = sections[active_index - 1], sections[active_index]
+        next_index = active_index - 1
+        msg = "Moved section up."
+    else:
+        next_index = active_index
+        msg = "Already at the top."
+    return (
+        sections,
+        next_index,
+        gr.update(choices=tab_choices(sections), value=active_label(sections, next_index)),
+        sections[next_index]["text"],
+        sections[next_index]["title"],
+        combine_sections(sections),
+        msg,
+    )
+
+
+def move_tab_down(
+    sections: list[dict[str, str]],
+    active_index: int,
+    editor_text: str,
+) -> tuple[Any, ...]:
+    sections = commit_editor_text(sections, active_index, editor_text)
+    if active_index < len(sections) - 1:
+        sections[active_index], sections[active_index + 1] = sections[active_index + 1], sections[active_index]
+        next_index = active_index + 1
+        msg = "Moved section down."
+    else:
+        next_index = active_index
+        msg = "Already at the bottom."
+    return (
+        sections,
+        next_index,
+        gr.update(choices=tab_choices(sections), value=active_label(sections, next_index)),
+        sections[next_index]["text"],
+        sections[next_index]["title"],
+        combine_sections(sections),
+        msg,
+    )
+
+
 def toggle_sidebar(open_state: bool) -> tuple[Any, ...]:
     next_state = not bool(open_state)
     editor_classes = ["editor-panel"] if next_state else ["editor-panel-full"]
@@ -538,6 +586,8 @@ with gr.Blocks(title="Text Tool", fill_height=True, css=LAYOUT_CSS) as demo:
 
             with gr.Row(elem_classes="layout-bottom"):
                 active_tab = gr.Dropdown(label="Section", show_label=False, choices=[], interactive=True, scale=4)
+                move_up_button = gr.Button("◀", scale=0)
+                move_down_button = gr.Button("▶", scale=0)
                 delete_tab_button = gr.Button("Delete section", scale=0)
             rename_tab_button = gr.Button("Rename", visible=False)
             save_button = gr.Button("Save", visible=False)
@@ -641,13 +691,18 @@ with gr.Blocks(title="Text Tool", fill_height=True, css=LAYOUT_CSS) as demo:
         outputs=[sections_state, active_index_state, editor, tab_title, combined],
     )
 
-    editor.change(
+    editor.blur(
         update_active_text,
         inputs=[sections_state, active_index_state, editor],
         outputs=[sections_state, combined],
     )
 
-    tab_title.change(
+    tab_title.blur(
+        rename_active_tab,
+        inputs=[sections_state, active_index_state, editor, tab_title],
+        outputs=[sections_state, active_tab, combined],
+    )
+    tab_title.submit(
         rename_active_tab,
         inputs=[sections_state, active_index_state, editor, tab_title],
         outputs=[sections_state, active_tab, combined],
@@ -669,6 +724,34 @@ with gr.Blocks(title="Text Tool", fill_height=True, css=LAYOUT_CSS) as demo:
         delete_tab,
         inputs=[sections_state, active_index_state, editor],
         outputs=[sections_state, active_index_state, active_tab, editor, tab_title, combined, status],
+    )
+
+    move_up_button.click(
+        move_tab_up,
+        inputs=[sections_state, active_index_state, editor],
+        outputs=[
+            sections_state,
+            active_index_state,
+            active_tab,
+            editor,
+            tab_title,
+            combined,
+            status,
+        ],
+    )
+
+    move_down_button.click(
+        move_tab_down,
+        inputs=[sections_state, active_index_state, editor],
+        outputs=[
+            sections_state,
+            active_index_state,
+            active_tab,
+            editor,
+            tab_title,
+            combined,
+            status,
+        ],
     )
 
     copy_button.click(
