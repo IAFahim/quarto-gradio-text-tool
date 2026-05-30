@@ -1,0 +1,16 @@
+[
+  {
+    "objectID": "index.html",
+    "href": "index.html",
+    "title": "Text Tool",
+    "section": "",
+    "text": "Text Tool\n    Create, save, fork, and combine five text segments from one persistent Gradio workspace."
+  },
+  {
+    "objectID": "setup.html",
+    "href": "setup.html",
+    "title": "Setup",
+    "section": "",
+    "text": "This site embeds a Gradio app hosted on Hugging Face Spaces.\nThe app stores saved drafts in a mounted Hugging Face Storage Bucket at /data. When run locally, it falls back to space/data/history.json.\nUseful commands:\nuv run python space/app.py\nquarto render\nquarto publish gh-pages --no-browser"
+  }
+]
