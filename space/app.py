@@ -156,10 +156,20 @@ def title_from_sections(sections: list[dict[str, str]]) -> str:
     return "Untitled draft"
 
 
+def format_timestamp(iso_str: str) -> str:
+    if not iso_str:
+        return ""
+    try:
+        dt = datetime.fromisoformat(iso_str)
+        return dt.strftime("%b %d, %Y · %H:%M")
+    except Exception:
+        return iso_str
+
+
 def draft_label(draft: dict[str, Any]) -> str:
     title = draft.get("title") or "Untitled draft"
     updated = draft.get("updated_at") or ""
-    return f"{title} | {updated}"
+    return f"{title} | {format_timestamp(updated)}"
 
 
 def load_history() -> list[dict[str, Any]]:
